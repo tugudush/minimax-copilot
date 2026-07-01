@@ -20,7 +20,7 @@ A minimal VS Code extension that surfaces **MiniMax M3 / M2.7** inside **GitHub 
 | Requirement                   | Details                                                                                                                                            |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **VS Code**                   | **1.111.0** or later                                                                                                                               |
-| **GitHub Copilot Chat**       | Installed and signed in (pre-installed in VS Code)                                                                                                 |
+| **GitHub Copilot Chat**       | Installed and signed in                                                                                                                            |
 | **MiniMax API key**           | PAYG key from [platform.minimax.io](https://platform.minimax.io) (International) or [platform.minimaxi.com](https://platform.minimaxi.com) (China) |
 | **Thinking block (optional)** | VS Code Insiders or a build with the `languageModelThinkingPart` proposal enabled                                                                  |
 
@@ -28,29 +28,24 @@ A minimal VS Code extension that surfaces **MiniMax M3 / M2.7** inside **GitHub 
 
 ## Installation
 
-### From the VS Code Marketplace
-
-1. Open VS Code, go to the **Extensions** view (`Ctrl+Shift+X`).
-2. Search for **MiniMax Copilot** and click **Install**.
-3. The **Get Started** walkthrough opens automatically — follow the steps.
-
 ### From a `.vsix` file (manual build)
 
 ```bash
-git clone https://github.com/minimax-copilot-paygo/minimax-copilot-paygo.git
-cd minimax-copilot-paygo
+git clone https://github.com/tugudush/minimax-copilot.git
+cd minimax-copilot
 npm install
 npm run package        # produces minimax-copilot-0.1.0.vsix
-code --install-extension minimax-copilot-0.1.0.vsix
 ```
 
-Or install via the Extensions panel: `...` → **Install from VSIX...** → select the file.
+Then install the generated `.vsix` via the Extensions panel: `...` → **Install from VSIX...** → select the file.
+
+> **After installing, reload VS Code** (`Ctrl+Shift+P` → **Developer: Reload Window**) to activate the extension.
 
 ---
 
 ## Setup (first use)
 
-After installation, the **Get Started** walkthrough guides you through setup. You can also complete these steps manually:
+After installation, complete the following steps to configure the extension:
 
 ### 1. Get a MiniMax API key
 
