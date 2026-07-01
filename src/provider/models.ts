@@ -5,32 +5,32 @@
  * tooltips for the active region.
  */
 
-import * as vscode from 'vscode';
-import { MODELS, pricingDetail } from '../models/registry';
-import { visibleModels } from '../config';
-import { hasApiKey } from '../auth';
-import { t } from '../i18n';
+import * as vscode from 'vscode'
+import { MODELS, pricingDetail } from '../models/registry'
+import { visibleModels } from '../config'
+import { hasApiKey } from '../auth'
+import { t } from '../i18n'
 
 /**
  * Build the list of `LanguageModelChatInformation` entries to show
  * in the Copilot Chat model picker.
  */
 export async function buildChatInformation(
-  context: vscode.ExtensionContext,
+  context: vscode.ExtensionContext
 ): Promise<vscode.LanguageModelChatInformation[]> {
-  const visible = visibleModels();
-  const hasKey = await hasApiKey(context);
+  const visible = visibleModels()
+  const hasKey = await hasApiKey(context)
 
-  let models = MODELS;
+  let models = MODELS
 
   // Filter to user-requested models if the list is non-empty.
   if (visible.length > 0) {
-    models = models.filter((m) => visible.includes(m.id));
+    models = models.filter((m) => visible.includes(m.id))
   }
 
   return models.map((info) => {
-    const detail = pricingDetail(info);
-    const tooltip = hasKey ? `PAYG • ${detail}` : t('provider.noKey');
+    const detail = pricingDetail(info)
+    const tooltip = hasKey ? `PAYG • ${detail}` : t('provider.noKey')
 
     // LanguageModelChatInformation is an interface — return a plain
     // object conforming to it.
@@ -47,6 +47,6 @@ export async function buildChatInformation(
         imageInput: info.multimodal,
         toolCalling: 128,
       },
-    } satisfies vscode.LanguageModelChatInformation;
-  });
+    } satisfies vscode.LanguageModelChatInformation
+  })
 }

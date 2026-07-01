@@ -1,6 +1,6 @@
-import * as esbuild from 'esbuild';
+import * as esbuild from 'esbuild'
 
-const watch = process.argv.includes('--watch');
+const watch = process.argv.includes('--watch')
 
 /** @type {esbuild.BuildOptions} */
 const options = {
@@ -14,13 +14,13 @@ const options = {
   sourcemap: true,
   minify: false,
   keepNames: true,
-};
+}
 
 if (watch) {
-  const ctx = await esbuild.context(options);
-  await ctx.watch();
-  console.log('[esbuild] watching for changes...');
+  const ctx = await esbuild.context(options)
+  await ctx.watch()
+  console.log('[esbuild] watching for changes...')
 } else {
-  await esbuild.build(options);
-  console.log('[esbuild] build complete');
+  await esbuild.build(options)
+  console.log('[esbuild] build complete')
 }

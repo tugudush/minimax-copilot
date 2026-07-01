@@ -5,36 +5,36 @@
  * directly, plus MiniMax-specific extensions (usage, pricing tier).
  */
 
-import type Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk'
 
 /* ---- Re-export key Anthropic types for convenience ---- */
-export type AnthropicMessage = Anthropic.Messages.Message;
-export type AnthropicContentBlock = Anthropic.Messages.ContentBlock;
-export type AnthropicTextBlock = Anthropic.Messages.TextBlock;
-export type AnthropicToolUseBlock = Anthropic.Messages.ToolUseBlock;
-export type AnthropicThinkingBlock = Anthropic.Messages.ThinkingBlock;
-export type AnthropicUsage = Anthropic.Messages.Usage;
+export type AnthropicMessage = Anthropic.Messages.Message
+export type AnthropicContentBlock = Anthropic.Messages.ContentBlock
+export type AnthropicTextBlock = Anthropic.Messages.TextBlock
+export type AnthropicToolUseBlock = Anthropic.Messages.ToolUseBlock
+export type AnthropicThinkingBlock = Anthropic.Messages.ThinkingBlock
+export type AnthropicUsage = Anthropic.Messages.Usage
 
-export type AnthropicMessageParam = Anthropic.Messages.MessageParam;
-export type AnthropicContentBlockParam = Anthropic.Messages.ContentBlockParam;
+export type AnthropicMessageParam = Anthropic.Messages.MessageParam
+export type AnthropicContentBlockParam = Anthropic.Messages.ContentBlockParam
 
-export type AnthropicStreamEvent = Anthropic.Messages.RawMessageStreamEvent;
+export type AnthropicStreamEvent = Anthropic.Messages.RawMessageStreamEvent
 
 /* ---- MiniMax model tier ---- */
-export type ModelTier = 'standard' | 'priority';
+export type ModelTier = 'standard' | 'priority'
 
 /* ---- Model descriptor ---- */
 export interface ModelInfo {
   /** Model ID sent in API requests. */
-  id: string;
+  id: string
   /** Display name in the model picker. */
-  name: string;
+  name: string
   /** Maximum context window (tokens). */
-  contextWindow: number;
+  contextWindow: number
   /** Whether adaptive thinking is supported. */
-  thinking: boolean;
+  thinking: boolean
   /** Service tier (standard / priority). */
-  tier: ModelTier;
+  tier: ModelTier
   /** Whether image/video input is supported. */
-  multimodal: boolean;
+  multimodal: boolean
 }

@@ -10,20 +10,20 @@
 
 export class FakeMemento {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private store = new Map<string, any>();
+  private store = new Map<string, any>()
 
   get(key: string): unknown {
-    return this.store.get(key);
+    return this.store.get(key)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   update(key: string, value: any): Thenable<void> {
-    this.store.set(key, value);
-    return Promise.resolve();
+    this.store.set(key, value)
+    return Promise.resolve()
   }
 
   reset(): void {
-    this.store.clear();
+    this.store.clear()
   }
 }
 
@@ -31,24 +31,24 @@ export class FakeMemento {
 
 export class FakeSecrets {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _store = new Map<string, any>();
+  private _store = new Map<string, any>()
 
   get(key: string): Thenable<string | undefined> {
-    return Promise.resolve(this._store.get(key) as string | undefined);
+    return Promise.resolve(this._store.get(key) as string | undefined)
   }
 
   store(key: string, value: string): Thenable<void> {
-    this._store.set(key, value);
-    return Promise.resolve();
+    this._store.set(key, value)
+    return Promise.resolve()
   }
 
   delete(key: string): Thenable<void> {
-    this._store.delete(key);
-    return Promise.resolve();
+    this._store.delete(key)
+    return Promise.resolve()
   }
 
   reset(): void {
-    this._store.clear();
+    this._store.clear()
   }
 }
 
@@ -63,23 +63,24 @@ export const mockState = {
   executedCommands: [] as string[],
 
   reset(): void {
-    this.informationMessages = [];
-    this.warningMessages = [];
-    this.errorMessages = [];
-    this.quickPickItems = [];
-    this.executedCommands = [];
+    this.informationMessages = []
+    this.warningMessages = []
+    this.errorMessages = []
+    this.quickPickItems = []
+    this.executedCommands = []
   },
-};
+}
 
 // Process‑wide mock of `vscode.workspace.getConfiguration`.
 // Assign `mockConfig['minimax.apiBaseUrl'] = 'https://...'` before
 // a test, then clean up in `afterEach`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const mockConfig: Record<string, any> = {};
+export const mockConfig: Record<string, any> = {}
 
 // Track calls to vscode.env.openExternal so tests can assert the
 // right platform URLs were targeted (e.g. 402 top‑up link).
 export function getOpenExternalCalls(): string[] {
-  const calls: unknown = (mockConfig as Record<string, unknown>).openExternalCalls;
-  return Array.isArray(calls) ? (calls as string[]) : [];
+  const calls: unknown = (mockConfig as Record<string, unknown>)
+    .openExternalCalls
+  return Array.isArray(calls) ? (calls as string[]) : []
 }

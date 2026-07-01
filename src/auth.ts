@@ -7,40 +7,50 @@
  * picker can refresh.
  */
 
-import * as vscode from 'vscode';
-import { SECRET_KEY } from './consts';
+import * as vscode from 'vscode'
+import { SECRET_KEY } from './consts'
 
 /* ---- Event emitter ---- */
 
-const _emitter = new vscode.EventEmitter<string | undefined>();
-export const onDidChangeApiKey: vscode.Event<string | undefined> = _emitter.event;
+const _emitter = new vscode.EventEmitter<string | undefined>()
+export const onDidChangeApiKey: vscode.Event<string | undefined> =
+  _emitter.event
 
 /* ---- Public API ---- */
 
 /** Read the stored API key (undefined if not set). */
-export async function getApiKey(context: vscode.ExtensionContext): Promise<string | undefined> {
-  return context.secrets.get(SECRET_KEY);
+export async function getApiKey(
+  context: vscode.ExtensionContext
+): Promise<string | undefined> {
+  return context.secrets.get(SECRET_KEY)
 }
 
 /** Store an API key in SecretStorage. */
-export async function setApiKey(context: vscode.ExtensionContext, key: string): Promise<void> {
-  await context.secrets.store(SECRET_KEY, key);
-  _emitter.fire(key);
+export async function setApiKey(
+  context: vscode.ExtensionContext,
+  key: string
+): Promise<void> {
+  await context.secrets.store(SECRET_KEY, key)
+  _emitter.fire(key)
 }
 
 /** Remove the stored API key. */
-export async function clearApiKey(context: vscode.ExtensionContext): Promise<void> {
-  await context.secrets.delete(SECRET_KEY);
-  _emitter.fire(undefined);
+export async function clearApiKey(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  await context.secrets.delete(SECRET_KEY)
+  _emitter.fire(undefined)
 }
 
 /** Check whether a key is currently stored. */
-export async function hasApiKey(context: vscode.ExtensionContext): Promise<boolean> {
-  const key = await getApiKey(context);
-  return !!key;
+export async function hasApiKey(
+  context: vscode.ExtensionContext
+): Promise<boolean> {
+  const key = await getApiKey(context)
+  return !!key
 }
 
 /** Dispose the event emitter (called on deactivation). */
 export function dispose(): void {
-  _emitter.dispose();
+  _emitter.dispose()
 }
