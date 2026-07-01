@@ -462,12 +462,12 @@ gone.
 
 ### Final fix tally (what was actually shipped)
 
-| §     | Hypothesis                                                                  | Status                           |
-|-------|-----------------------------------------------------------------------------|----------------------------------|
-| §3    | `content.content` `LanguageModelToolResult` wrapper                         | Real bug, fixed, but not the loop cause |
-| §5    | Non-text part types (`PromptTsxPart`, `DataPart`) returning `''`            | Real bug, fixed, but not the loop cause |
-| §6    | `cache_control` synthetic marker polluting extracted text                    | Real bug, fixed, but not the loop cause |
-| §7    | **Wrong VS Code role mapping** (User=1, Assistant=2, no public System role) | **Real bug, fixed, loop RESOLVED**  |
+| §   | Hypothesis                                                                  | Status                                  |
+| --- | --------------------------------------------------------------------------- | --------------------------------------- |
+| §3  | `content.content` `LanguageModelToolResult` wrapper                         | Real bug, fixed, but not the loop cause |
+| §5  | Non-text part types (`PromptTsxPart`, `DataPart`) returning `''`            | Real bug, fixed, but not the loop cause |
+| §6  | `cache_control` synthetic marker polluting extracted text                   | Real bug, fixed, but not the loop cause |
+| §7  | **Wrong VS Code role mapping** (User=1, Assistant=2, no public System role) | **Real bug, fixed, loop RESOLVED**      |
 
 Each prior "real bug, not the loop cause" fix was independently valuable and
 should stay in the codebase — they were masking the role-mapping bug behind
@@ -480,8 +480,8 @@ inside those bodies was simply unrecoverable until roles were corrected.
 
 1. Pick any git workspace.
 2. Ensure MiniMax M3 is the active Copilot Chat model.
-3. Prompt: *"check the repo state, then stage, commit and push to the current
-   branch."*
+3. Prompt: _"check the repo state, then stage, commit and push to the current
+   branch."_
 4. Expect: one `git status`, then `git add` / `git commit -m "…"` /
    `git push` in sequence, with a single final assistant message summarizing
    what was done. **No re-proposal** of `git status` after the first result.
@@ -492,9 +492,9 @@ inside those bodies was simply unrecoverable until roles were corrected.
   - `[toolresult-diag]` in `src/provider/index.ts`.
   - `[stream-diag] tool_choice forced to "any"` and
     `[stream-diag] stop_reason=` in `src/client/client.ts`.
-  These were added specifically to confirm each hypothesis and can come out
-  in a small follow-up commit once the team is confident no regression
-  sneaks back in.
+    These were added specifically to confirm each hypothesis and can come out
+    in a small follow-up commit once the team is confident no regression
+    sneaks back in.
 - Consider extracting the role constants (`ROLE_SYSTEM = 0`,
   `ROLE_USER = 1`, `ROLE_ASSISTANT = 2`) and the `convertRole` mapping into
   a small standalone module so they cannot drift again. The
