@@ -5,6 +5,13 @@
  *  1. List models in the picker.
  *  2. Stream a chat response.
  *  3. Estimate token counts.
+ *
+ * ## Thinking (Phase 2)
+ *
+ * The provider maintains a `thinkingSignatures` map keyed by stable
+ * thinking block ids. The streaming client populates it with
+ * signatures as thinking blocks complete; `convertMessages` reads it
+ * to replay signed thinking blocks in subsequent turns.
  */
 
 import * as vscode from 'vscode'
@@ -21,6 +28,18 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
   private _onDidChange = new vscode.EventEmitter<void>()
   readonly onDidChangeLanguageModelChatInformation: vscode.Event<void> =
     this._onDidChange.event
+
+  /**
+   * Monotonic counter incremented each chat turn. Used to build
+   * stable thinking block ids (`minimax-thinking-<turn>-<block>`).
+   */
+  private turnIndex = 0
+
+  /**
+   * Map of thinking block id → signature, populated by the streaming
+   * client and consumed by `convertMessages` for replay.
+   */
+  private thinkingSignatures = new Map<string, string>()
 
   constructor(private readonly context: vscode.ExtensionContext) {
     context.subscriptions.push(
@@ -86,14 +105,22 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
 
     logger.info(`Chat request: model=${model.id}, messages=${messages.length}`)
 
-    // Convert messages.
-    const { system, messages: anthropicMessages } = convertMessages(messages)
+    // Advance the turn counter for stable thinking block ids.
+    const turn = this.turnIndex++
+
+    // Convert messages, replaying prior thinking blocks with their
+    // signatures so the model sees its own past reasoning.
+    const { system, messages: anthropicMessages } = convertMessages(
+      messages,
+      this.thinkingSignatures
+    )
 
     // Determine max tokens.
     const configMax = maxOutputTokens()
     const maxTokens = configMax > 0 ? configMax : 4096
 
-    // Stream.
+    // Stream. The client will populate `this.thinkingSignatures` with
+    // any new thinking-block signatures returned by the server.
     await streamChat(
       apiKey,
       model.id,
@@ -101,7 +128,9 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
       anthropicMessages,
       maxTokens,
       progress,
-      token
+      token,
+      this.thinkingSignatures,
+      turn
     )
   }
 
