@@ -18,7 +18,7 @@ declare module 'vscode' {
    */
   export class LanguageModelThinkingPart {
     /** The reasoning text, or an array of reasoning blocks. */
-    value: string | string[];
+    value: string | string[]
 
     /**
      * Optional stable identifier for this thinking block.
@@ -26,15 +26,15 @@ declare module 'vscode' {
      * collapsible `ThinkingDataContainer`. Without an id
      * the part may render as inline text.
      */
-    id?: string;
+    id?: string
 
     /** Optional metadata bag. */
-    metadata?: Readonly<Record<string, unknown>>;
+    metadata?: Readonly<Record<string, unknown>>
 
     /**
      * @param value The reasoning text.
      * @param id Optional stable identifier for the block.
      */
-    constructor(value: string, id?: string);
+    constructor(value: string, id?: string)
   }
 }

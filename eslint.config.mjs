@@ -1,5 +1,5 @@
-import eslint from '@eslint/js';
-import tseslint from 'typescript-eslint';
+import eslint from '@eslint/js'
+import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
   eslint.configs.recommended,
@@ -15,8 +15,14 @@ export default tseslint.config(
   },
   {
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' },
+      ],
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        { allowNumber: true },
+      ],
     },
   },
   {
@@ -27,5 +33,5 @@ export default tseslint.config(
   },
   {
     ignores: ['dist/**', 'node_modules/**'],
-  },
-);
+  }
+)
