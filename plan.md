@@ -6,6 +6,17 @@ Inspired by [`klarkxy/minimax-vscode`](https://github.com/klarkxy/minimax-vscode
 
 ---
 
+> **Progress:** ~~Phase 0~~ ✅ · **Phase 1** 🔧 · Phase 2 · Phase 3
+
+| Phase | Status | Exit criteria |
+| --- | :---: | --- |
+| Phase 0 — Scaffold | ✅ | `F5` host logs `MiniMax PAYG Copilot activated`; `npm run compile`, `npm run lint`, `npm test` all green |
+| Phase 1 — PAYG chat | 🔧 | Pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works |
+| Phase 2 — Thinking + collapsible | — | Collapsible "Thinking" block in Copilot Chat; verbose dump shows the `thinking` field |
+| Phase 3 — Polish | — | Error toasts, walkthrough, README (en+zh), `vsce package` smoke test |
+
+---
+
 ## 1. The three requirements
 
 ### 1.1 Pay‑as‑you‑go support
@@ -207,4 +218,6 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 ## Next action
 
-Start **Phase 0 (Scaffold)**: `package.json` (with `enabledApiProposals: ["languageModelThinkingPart"]`), `tsconfig.json`, esbuild / ESLint / `node:test` config, the VS Code API mock helper, `LICENSE` (MIT), `README.md` stub, and a minimal `src/activate.ts`. Then Phase 1 → 2 → 3 per §9.
+**Phase 0 done.** The scaffold compiles, lints, and logs activation.
+
+Now on **Phase 1 — PAYG chat**: implement `consts.ts`, `types.ts`, `config.ts`, `models/registry.ts`, `auth.ts`, `client/*`, `provider/*`, `runtime/commands` + `endpoint`, `i18n.ts`, `logger.ts`. Exit: pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works. Then Phase 2 → 3 per §9.
