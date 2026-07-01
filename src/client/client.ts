@@ -88,9 +88,6 @@ export async function streamChat(
       ;(params as unknown as Record<string, unknown>).tool_choice = {
         type: 'any',
       }
-      logger.info(
-        '[stream-diag] tool_choice forced to "any" (toolMode=Required)'
-      )
     }
   }
 
@@ -206,12 +203,6 @@ export async function streamChat(
         }
 
         case 'message_delta': {
-          const stopReason = (
-            event as unknown as { delta?: { stop_reason?: string } }
-          ).delta?.stop_reason
-          if (stopReason) {
-            logger.info(`[stream-diag] stop_reason=${stopReason}`)
-          }
           break
         }
 

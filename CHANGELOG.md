@@ -6,14 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.1.1] — 2026-07-01
+## [0.1.0] — 2026-07-02
+
+Initial release. PAYG-first VS Code extension that surfaces **MiniMax
+M3 / M3 Priority / M2.7 / M2.7 Highspeed** inside **GitHub Copilot
+Chat**, with adaptive thinking rendered as a collapsible block.
 
 ### Fixed — `loop-repeat` (Copilot trapped in `git status` etc.)
 
 Four stacked bugs in `src/client/convert.ts` and the supporting streaming
 plumbing caused the model to re-propose a tool it had already received an
 answer for. Each fix is independently valuable; the last one actually
-stopped the loop.
+stopped the loop. See [`docs/bugs/loop-repeat/findings-and-plan.md`](docs/bugs/loop-repeat/findings-and-plan.md)
+for the full postmortem.
 
 - **`isToolResultPart` / `extractToolResultText` — wrapper unwrap.** A
   `LanguageModelToolResultPart` whose `content` is a wrapped
@@ -37,33 +42,6 @@ stopped the loop.
   re-proposed the same tool because the previous `tool_use`/`tool_result`
   exchange was structurally invalid. This is the **loop's real root
   cause**.
-
-### Added
-
-- Diagnostic log lines in `src/provider/index.ts` (`[toolresult-diag]`)
-  and `src/client/client.ts` (`[stream-diag] tool_choice forced to "any"`,
-  `[stream-diag] stop_reason=`) to make future regressions traceable.
-  Pending removal (see follow-ups in
-  `docs/bugs/loop-repeat/findings-and-plan.md` §8).
-- 5 new unit tests in `test/convert.test.ts`:
-  - `converts tool results wrapped in a LanguageModelToolResult object …`
-  - `extracts text from LanguageModelDataPart tool results …`
-  - `drops the synthetic cache_control DataPart …`
-  - `preserves LanguageModelPromptTsxPart tool results …`
-  - Plus role-mapping regression coverage via the existing fixtures
-    (now using explicit `ROLE_*` constants).
-
-### Tests
-
-- 15/15 passing in `test/convert.test.ts` (10 pre-existing + 5 new).
-
----
-
-## [0.1.0] — 2026-06-XX
-
-Initial release. PAYG-first VS Code extension that surfaces **MiniMax
-M3 / M3 Priority / M2.7 / M2.7 Highspeed** inside **GitHub Copilot
-Chat**, with adaptive thinking rendered as a collapsible block.
 
 ### Added
 
@@ -123,12 +101,20 @@ Global API` / `MiniMax: Switch to Chinese API` commands override
   `minimax-m3-priority` (1M ctx, +50% pricing), `minimax-m2.7`
   (200K ctx, no thinking), `minimax-m2.7-highspeed` (200K ctx, +2×
   pricing).
-- **Unit tests** — 10 in `test/convert.test.ts` covering system
-  extraction, text/thinking/tool-call/tool-result conversion, and
-  thinking-block round-trip with signatures.
 - **Build tooling** — esbuild → `dist/extension.js`; ESLint
   flat config; Prettier; `tsc --noEmit`; `npm run ltfb` =
   lint + typecheck + format + compile.
+
+### Tests
+
+- 15/15 passing in `test/convert.test.ts`:
+  - 10 covering system extraction, text/thinking/tool-call/tool-result
+    conversion, and thinking-block round-trip with signatures.
+  - 5 new covering the loop-repeat fixes: wrapped
+    `LanguageModelToolResult` tool results, `LanguageModelDataPart`
+    tool results, the synthetic `cache_control` `DataPart` drop,
+    `LanguageModelPromptTsxPart` tool results, and role-mapping
+    regression coverage via explicit `ROLE_*` constants in fixtures.
 
 ### Known limitations
 
@@ -143,5 +129,4 @@ Global API` / `MiniMax: Switch to Chinese API` commands override
   English-only. Bilingual UI strings exist in `src/i18n.ts` and can
   be exported to a docs build later.
 
-[0.1.1]: #011--2026-07-01
-[0.1.0]: #010--2026-06-xx
+[0.1.0]: #010--2026-07-02
