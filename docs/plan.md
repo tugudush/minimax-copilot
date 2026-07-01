@@ -230,6 +230,7 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 - `vsce package` produces a clean `.vsix` (11 files, ~400 KB).
 
 **Release checklist:**
+
 - [ ] Verify in VS Code Insiders with a real PAYG key.
 - [ ] Take screenshots for the Marketplace listing.
 - [ ] Publish to the VS Code Marketplace (`vsce publish`).
