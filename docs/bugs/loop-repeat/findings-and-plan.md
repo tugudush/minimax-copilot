@@ -114,7 +114,8 @@ containing a content array` — reproduces the exact runtime shape
 
 4. **Quality gates** — `npm run ltfb` (lint + typecheck + format + compile)
    passed cleanly; `npm test` reports **12/12 passing** (10 pre-existing +
-   2 new).
+   2 new in this step; a further 3 are added in §5–§6 below, ending at
+   15/15).
 
 ### Runtime rollout caveat
 
@@ -205,7 +206,8 @@ extraction. Remove once confirmed.
 
 Tests: `test/convert.test.ts` adds two regression tests — `DataPart`
 (Uint8Array decode) and `PromptTsxPart` (serialized, not `'(empty)'`).
-14/14 pass; lint/typecheck/format clean.
+**14/14 pass** (2 new added in this step, on top of the 2 from §3);
+lint/typecheck/format clean.
 
 ### Deploy
 
@@ -309,7 +311,8 @@ This has **not** been confirmed yet — it is the next thing to check.
   cut off or is voluntarily choosing to keep calling tools.
 
 Quality gates: 15/15 tests pass (1 new regression test for the cache_control
-fix), lint/typecheck/format clean.
+fix, bringing the total new tests in this fix set to 5: 2 in §3, 2 in §5,
+1 in §6), lint/typecheck/format clean.
 
 ### Deploy
 
@@ -468,6 +471,11 @@ gone.
 | §5  | Non-text part types (`PromptTsxPart`, `DataPart`) returning `''`            | Real bug, fixed, but not the loop cause |
 | §6  | `cache_control` synthetic marker polluting extracted text                   | Real bug, fixed, but not the loop cause |
 | §7  | **Wrong VS Code role mapping** (User=1, Assistant=2, no public System role) | **Real bug, fixed, loop RESOLVED**      |
+
+> **Test additions per step:** §3 +2, §5 +2, §6 +1, §7 +0 (the
+> existing fixtures were re-pointed at the correct role constants so
+> they now act as regression tests for §7). Total: 5 new cases
+> (10 → 15).
 
 Each prior "real bug, not the loop cause" fix was independently valuable and
 should stay in the codebase — they were masking the role-mapping bug behind

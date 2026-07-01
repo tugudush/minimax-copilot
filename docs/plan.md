@@ -13,7 +13,7 @@ Inspired by [`klarkxy/minimax-vscode`](https://github.com/klarkxy/minimax-vscode
 | Phase 0 — Scaffold               |   ✅   | `F5` host logs `MiniMax PAYG Copilot activated`; `npm run compile`, `npm run lint`, `npm test` all green |
 | Phase 1 — PAYG chat              |   ✅   | Pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works               |
 | Phase 2 — Thinking + collapsible |   ✅   | Collapsible "Thinking" block in Copilot Chat; verbose dump shows the `thinking` field                    |
-| Phase 3 — Polish                 |   ✅   | Error toasts, walkthrough, README (en+zh), `vsce package` smoke test                                     |
+| Phase 3 — Polish                 |   ✅   | Error toasts, walkthrough, README, `vsce package` smoke test                                             |
 
 ---
 
@@ -67,7 +67,7 @@ src/
 │   └── registry.ts          # M3 / M3-Priority / M2.7 / M2.7-highspeed + pricing tooltip
 ├── auth.ts                  # single key in SecretStorage + onDidChangeApiKey emitter
 ├── client/
-│   ├── client.ts            # @anthropic-ai/sdk wrapper; SSE → text + thinking stubs
+│   ├── client.ts            # @anthropic-ai/sdk streaming wrapper; SSE → text / thinking / tool-call parts
 │   ├── convert.ts           # vscode messages → Anthropic messages (thinking replay: Phase 2)
 │   └── error.ts             # 401/402/429/5xx → i18n toasts + billing deep link
 ├── provider/
@@ -87,6 +87,8 @@ src/
 4. `client/client.ts` streams via `@anthropic-ai/sdk`. For each event:
    - text delta → `progress.report(new LanguageModelTextPart(...))`.
    - **thinking delta → `progress.report(new LanguageModelThinkingPart(text, { id }))`** ★.
+   - `input_json_delta` → accumulated; on `content_block_stop` a `LanguageModelToolCallPart` is emitted.
+   - `content_block_stop` for a thinking block → its `signature` is captured into the `thinkingSignatures` map for replay on the next turn.
 5. Done. No usage/cost accounting — out of scope.
 
 ---
@@ -101,14 +103,14 @@ src/
 
 ### 4.2 Model registry (`models/registry.ts`)
 
-M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the original). M3: 1M context (512K effective default), `thinking: true` (adaptive only — no budget slider, matching the upstream endpoint). M2.7: 204,800. Tool limit 128; image/video input on M3. Picker tooltip shows the per‑million‑token PAYG price row for the active region.
+M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the original). M3: 1M context window (advertised as `maxInputTokens` to Copilot Chat), `thinking: true` (adaptive only — no budget slider, matching the upstream endpoint). M2.7: 200K (204,800) tokens, no thinking. Tool limit 128; image/video input on M3. Picker tooltip shows the per‑million‑token PAYG price row for the active region.
 
 ### 4.3 Auth — single key, PAYG‑correct (`auth.ts`)
 
 - One key in `context.secrets` under `minimax-paygo.apiKey`. `onDidChangeApiKey` emitter for multi‑window sync + picker refresh.
 - **No `coding_plan/remains` probe.** Region/endpoint comes from `minimax.apiBaseUrl`, auto‑picked from `vscode.env.language` on first activation (zh → China `api.minimaxi.com/anthropic`, en → Global `api.minimax.io/anthropic`), switchable via commands.
-- Optional `MiniMax: Test Key` command sends a 1‑token `/v1/messages` ping to confirm endpoint + key (bills a fraction of a cent; opt‑in).
 - Copy says "API key" / "pay‑as‑you‑go" — never "Token Plan".
+- _Deferred:_ an optional `MiniMax: Test Key` command (1‑token `/v1/messages` ping to confirm endpoint + key) is described in the original plan but **not** shipped — see §7.
 
 ### 4.4 Chat provider (`provider/`, `client/`)
 
@@ -120,7 +122,7 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 ### 4.5 Thinking — the star feature (`client/client.ts`, `client/convert.ts`)
 
-- **Enable:** for M3, send `thinking: { type: "adaptive" }` when `minimax.thinking` is on (default `true`). Off → `thinking: { type: "disabled" }`. M2.7 has no thinking; the field is omitted.
+- **Enable:** for M3, send `thinking: { type: "adaptive" }` when `minimax.thinking` is on (default `true`). When off, the `thinking` field is **omitted** from the request body entirely (Anthropic-compatible endpoints treat the absent field as "no thinking" — we do not send `{type: "disabled"}`; the code in `src/client/client.ts` simply doesn't set the key). M2.7 has no thinking; the field is always omitted for M2.7-family models.
 - **Stream:** map Anthropic `thinking_delta` → `new vscode.LanguageModelThinkingPart(text)`. Assign **one stable `id` per turn** (e.g. `minimax-thinking-<turn>`) and pass it via the part's `id` so Copilot Chat renders its stateful **collapsible** `ThinkingDataContainer`.
 - **Replay:** when prior assistant turns contain thinking blocks, re‑emit them in the request with their `signature` (Anthropic requires signed thinking blocks in history) so the model sees its own past reasoning.
 - **Availability guard:** `languageModelThinkingPart` is proposed. Detect `vscode.LanguageModelThinkingPart` at runtime; if absent (stable VS Code without the proposal active), thinking deltas are dropped gracefully — chat still works, just without the reasoning block. The README documents that the collapsible reasoning block needs a build where the proposal is active (Insiders / approved).
@@ -143,7 +145,6 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 | Setting                   | Default   | Purpose                                                  |
 | ------------------------- | --------- | -------------------------------------------------------- |
-| `minimax.apiKey`          | —         | PAYG API key (stored in SecretStorage, set via command). |
 | `minimax.apiBaseUrl`      | auto      | Anthropic base URL; auto‑picked from locale, switchable. |
 | `minimax.thinking`        | `true`    | ★ M3 adaptive thinking on/off.                           |
 | `minimax.visibleModels`   | all       | Restrict picker entries.                                 |
@@ -152,26 +153,37 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 (★ = the one user‑facing reasoning toggle. No budget / spend / balance settings.)
 
+> **Note:** the PAYG API key is **not** a setting — it lives in
+> SecretStorage under `minimax-paygo.apiKey` and is set via the
+> `MiniMax: Set API Key` command (see `src/auth.ts`). It is never
+> written to `settings.json` or `globalState`.
+
 ---
 
 ## 7. Commands (minimal)
 
-| Command                          | Purpose                                           |
-| -------------------------------- | ------------------------------------------------- |
-| `MiniMax: Set API Key`           | Store a PAYG key in SecretStorage.                |
-| `MiniMax: Clear API Key`         | Remove the key.                                   |
-| `MiniMax: Switch to Global API`  | Endpoint → `api.minimax.io/anthropic`.            |
-| `MiniMax: Switch to Chinese API` | Endpoint → `api.minimaxi.com/anthropic`.          |
-| `MiniMax: Toggle Thinking`       | Flip `minimax.thinking` (M3 reasoning on/off).    |
-| `MiniMax: Test Key`              | (optional) 1‑token ping to verify key + endpoint. |
-| `MiniMax: Show Logs`             | Focus the output channel.                         |
+| Command                          | Purpose                                        |
+| -------------------------------- | ---------------------------------------------- |
+| `MiniMax: Set API Key`           | Store a PAYG key in SecretStorage.             |
+| `MiniMax: Clear API Key`         | Remove the key.                                |
+| `MiniMax: Switch to Global API`  | Endpoint → `api.minimax.io/anthropic`.         |
+| `MiniMax: Switch to Chinese API` | Endpoint → `api.minimaxi.com/anthropic`.       |
+| `MiniMax: Toggle Thinking`       | Flip `minimax.thinking` (M3 reasoning on/off). |
+| `MiniMax: Show Logs`             | Focus the output channel.                      |
+
+> `MiniMax: Test Key` _(deferred)_ — the plan originally described an
+> optional 1‑token `/v1/messages` ping to confirm endpoint + key. It
+> is **not** shipped today. Use the existing `Set API Key` /
+> `Switch to …` commands plus the output channel to verify a key
+> manually.
 
 ---
 
 ## 8. Build, test, package
 
 - `npm run compile` (esbuild), `npm run watch`, `npm run lint`, `npm test` (`node --test`), `npm run package` (`vsce package` → `.vsix`).
-- Unit tests: `convert.ts` (thinking replay / signatures), `client.ts` (event → part mapping incl. thinking), `endpoint.ts` (locale → host), `auth.ts` (no `coding_plan` call). VS Code API mocked.
+- Unit tests today: `convert.ts` only (thinking replay, signatures, tool‑call / tool‑result conversion incl. `TextPart` / `DataPart` / `PromptTsxPart` / `cache_control` shapes, role mapping). 15 cases in `test/convert.test.ts`.
+- **Out of scope today (deferred):** dedicated unit tests for `client.ts` (event → part mapping), `endpoint.ts` (locale → host), and `auth.ts` (no `coding_plan` call). The plan originally listed these — they remain a backlog item, not a current claim.
 - Install: `code --install-extension minimax-copilot-paygo-*.vsix`.
 
 ---
@@ -181,20 +193,20 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 - **Phase 0 — Scaffold:** `package.json` (with `enabledApiProposals`), `tsconfig.json`, esbuild, ESLint, test harness, mock helpers, `LICENSE` (MIT), `README` stub, `src/activate.ts`. _Exit: F5 host logs activation._
 - **Phase 1 — PAYG chat:** `consts`, `types`, `config`, `models/registry`, `auth`, `client/*`, `provider/*`, `runtime/commands` + `endpoint`, `i18n`, `logger`. _Exit: pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works._
 - **Phase 2 — Thinking + collapsible:** send `thinking:{type:"adaptive"}`, map `thinking_delta` → `LanguageModelThinkingPart` (with `id`), thinking replay with signatures, toggle command. _Exit: a collapsible "Thinking" block appears in Copilot Chat on a proposal‑active build; verbose dump shows the `thinking` field._
-- **Phase 3 — Polish:** error toasts (402 top‑up), walkthrough, README (en+zh), screenshots, `vsce package` smoke test.
+- **Phase 3 — Polish:** error toasts (402 top‑up), walkthrough, README, `vsce package` smoke test. _(Chinese README deferred — bilingual UI strings already live in `src/i18n.ts`.)_
 
 ---
 
 ## 10. Verification criteria
 
-- ✅ A PAYG key streams a chat response; no `coding_plan` call is ever made (asserted by a test that spies on `fetch`).
-- ✅ Adding a Global PAYG key on a zh‑locale install (and vice‑versa) does **not** misroute — the explicit switch pins the endpoint and chat succeeds.
-- ✅ The request body for M3 includes `thinking: { type: "adaptive" }` (verified via verbose dump).
-- ✅ `thinking_delta` stream events are mapped to `LanguageModelThinkingPart` with a stable `id` (unit tested — `test/convert.test.ts`).
-- ✅ Thinking-block `signature` values are captured from `content_block_stop` and replayed in subsequent turns (round-trip unit tested).
+- ✅ A PAYG key streams a chat response; no `coding_plan` call is ever made (verified by `grep -rn coding_plan src/ test/` returning nothing).
+- ⚠️ Adding a Global PAYG key on a zh‑locale install (and vice‑versa) does **not** misroute — the explicit switch pins the endpoint and chat succeeds. _(Manual verification only today — no automated test yet; see §8 backlog.)_
+- ✅ The request body for M3 includes `thinking: { type: "adaptive" }` (verified via verbose dump when `minimax.debugMode === "verbose"`).
+- ⚠️ `thinking_delta` stream events are mapped to `LanguageModelThinkingPart` with a stable `id` (implemented in `src/client/client.ts`; not yet covered by an isolated unit test — see §8 backlog).
+- ✅ Thinking-block `signature` values are captured from `content_block_stop` and replayed in subsequent turns (round-trip unit tested in `test/convert.test.ts`).
 - ✅ When the proposal is unavailable, chat still works (thinking dropped gracefully via `runtime/thinkingPartGuard.ts`).
 - ✅ The key lives only in SecretStorage (absent from `globalState` / workspace settings).
-- ✅ `npm test` green; `vsce package` produces an installing `.vsix`.
+- ✅ `npm test` green (15/15); `vsce package` produces an installing `.vsix`.
 
 ---
 
@@ -223,11 +235,11 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 - PAYG chat works with MiniMax M3 / M2.7 (no Token‑Plan probe, no region misrouting).
 - Adaptive thinking on by default with collapsible "Thinking" block (`LanguageModelThinkingPart`).
-- Thinking replay with signatures for multi‑turn conversations (10 unit tests).
+- Thinking replay with signatures for multi‑turn conversations (covered by 15 unit tests in `test/convert.test.ts`).
 - Error toasts (401/402/403/429/5xx) with bilingual i18n and billing deep link.
 - Walkthrough guides new users through setup (4 steps).
-- Bilingual README (en + zh).
-- `vsce package` produces a clean `.vsix` (11 files, ~400 KB).
+- README (English). _(Bilingual UI strings live in `src/i18n.ts`; a Chinese README is deferred.)_
+- `vsce package` produces a clean `.vsix`.
 
 **Release checklist:**
 
