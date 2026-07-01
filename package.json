@@ -1,0 +1,128 @@
+{
+  "name": "minimax-copilot",
+  "displayName": "MiniMax Copilot",
+  "description": "MiniMax models in Copilot Chat",
+  "version": "0.1.0",
+  "publisher": "minimax-copilot-paygo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/minimax-copilot-paygo/minimax-copilot-paygo.git"
+  },
+  "engines": {
+    "vscode": "^1.111.0"
+  },
+  "enabledApiProposals": [
+    "languageModelThinkingPart"
+  ],
+  "categories": [
+    "Machine Learning",
+    "Chat"
+  ],
+  "keywords": [
+    "minimax",
+    "copilot",
+    "m3",
+    "payg",
+    "coding agent",
+    "ai",
+    "llm"
+  ],
+  "icon": "icon/icon.png",
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languageModelProviders": [
+      {
+        "id": "minimax",
+        "vendor": "minimax"
+      }
+    ],
+    "commands": [
+      {
+        "command": "minimax.setApiKey",
+        "title": "MiniMax: Set API Key"
+      },
+      {
+        "command": "minimax.clearApiKey",
+        "title": "MiniMax: Clear API Key"
+      },
+      {
+        "command": "minimax.switchToGlobal",
+        "title": "MiniMax: Switch to Global API"
+      },
+      {
+        "command": "minimax.switchToChina",
+        "title": "MiniMax: Switch to Chinese API"
+      },
+      {
+        "command": "minimax.toggleThinking",
+        "title": "MiniMax: Toggle Thinking"
+      },
+      {
+        "command": "minimax.showLogs",
+        "title": "MiniMax: Show Logs"
+      }
+    ],
+    "configuration": {
+      "title": "MiniMax Copilot (PAYG)",
+      "properties": {
+        "minimax.apiBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic-compatible base URL. Auto-picked from locale on first activation; leave blank for the default."
+        },
+        "minimax.thinking": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable adaptive reasoning/thinking for MiniMax M3."
+        },
+        "minimax.visibleModels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Model IDs to show in the picker. Empty = all models."
+        },
+        "minimax.maxOutputTokens": {
+          "type": "number",
+          "default": 0,
+          "description": "Output token cap per request. 0 = model decides."
+        },
+        "minimax.debugMode": {
+          "type": "string",
+          "enum": [
+            "minimal",
+            "metadata",
+            "verbose"
+          ],
+          "default": "minimal",
+          "description": "Debug verbosity. 'verbose' writes full request bodies to disk."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "lint": "eslint src/ test/",
+    "test": "node --import tsx --test test/**/*.test.ts",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.110.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.62.1"
+  }
+}
