@@ -2,56 +2,199 @@
 
 A minimal VS Code extension that surfaces **MiniMax M3 / M2.7** inside **GitHub Copilot Chat** with pay‑as‑you‑go key support and collapsible reasoning.
 
-### Features
+---
+
+## Features
 
 - **M3 adaptive thinking** — reasoning streamed as a collapsible "Thinking" block in Copilot Chat (requires a VS Code build with the `languageModelThinkingPart` proposal active — Insiders / approved).
 - **PAYG‑first** — works with a MiniMax pay‑as‑you‑go API key. No Token‑Plan subscription required.
-- **China / Global endpoint switch** — pick the endpoint that matches your MiniMax account.
+- **China / Global endpoint switch** — pick the endpoint that matches your MiniMax account region.
+- **Four model tiers** — M3 standard, M3 priority, M2.7 standard, M2.7 highspeed.
+- **Secure key storage** — API key stored in VS Code SecretStorage, never written to disk or settings files.
 - **Minimal** — no dashboards, no budgets, no balance monitors. Just chat, with reasoning.
 
-### Quick start
+---
 
-1. Install from the VS Code Marketplace, or build from source: `npm run package` → install the `.vsix`.
-2. Run **MiniMax: Set API Key** and paste your MiniMax API key.
-3. Run **MiniMax: Switch to Global API** or **MiniMax: Switch to Chinese API** to match your key's region.
-4. Open Copilot Chat (`Ctrl+Shift+I`), pick **MiniMax M3** from the model picker, and start chatting.
+## Prerequisites
 
-### Requirements
+| Requirement                   | Details                                                                                                                                            |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **VS Code**                   | **1.111.0** or later                                                                                                                               |
+| **GitHub Copilot Chat**       | Installed and signed in (pre-installed in VS Code)                                                                                                 |
+| **MiniMax API key**           | PAYG key from [platform.minimax.io](https://platform.minimax.io) (International) or [platform.minimaxi.com](https://platform.minimaxi.com) (China) |
+| **Thinking block (optional)** | VS Code Insiders or a build with the `languageModelThinkingPart` proposal enabled                                                                  |
 
-- VS Code **1.111.0** or later.
-- GitHub Copilot Chat extension installed and signed in.
-- A MiniMax API key ([platform.minimax.io](https://platform.minimax.io) — International, or [platform.minimaxi.com](https://platform.minimaxi.com) — China).
-- For the **collapsible reasoning block**, a VS Code build where the `languageModelThinkingPart` proposal is active. On stable VS Code, chat still works — reasoning just won't render as a separate block.
+---
 
-### Settings
+## Installation
 
-| Setting                   | Default   | Purpose                                        |
-| ------------------------- | --------- | ---------------------------------------------- |
-| `minimax.apiBaseUrl`      | auto      | Anthropic base URL; auto‑picked from locale.   |
-| `minimax.thinking`        | `true`    | M3 adaptive reasoning on/off.                  |
-| `minimax.visibleModels`   | all       | Restrict picker entries.                       |
-| `minimax.maxOutputTokens` | `0`       | Output cap (`0` = model decides).              |
-| `minimax.debugMode`       | `minimal` | Verbosity: `minimal` / `metadata` / `verbose`. |
+### From the VS Code Marketplace
 
-### Commands
+1. Open VS Code, go to the **Extensions** view (`Ctrl+Shift+X`).
+2. Search for **MiniMax Copilot** and click **Install**.
+3. The **Get Started** walkthrough opens automatically — follow the steps.
 
-| Command                          | Purpose                                  |
-| -------------------------------- | ---------------------------------------- |
-| `MiniMax: Set API Key`           | Store your key in VS Code SecretStorage. |
-| `MiniMax: Clear API Key`         | Remove the stored key.                   |
-| `MiniMax: Switch to Global API`  | Endpoint → `api.minimax.io`.             |
-| `MiniMax: Switch to Chinese API` | Endpoint → `api.minimaxi.com`.           |
-| `MiniMax: Toggle Thinking`       | Turn M3 reasoning on or off.             |
-| `MiniMax: Show Logs`             | Focus the output channel.                |
-
-### Building from source
+### From a `.vsix` file (manual build)
 
 ```bash
+git clone https://github.com/minimax-copilot-paygo/minimax-copilot-paygo.git
+cd minimax-copilot-paygo
 npm install
-npm run compile   # esbuild → dist/extension.js
-npm test          # node --test (10 tests)
-npm run package   # vsce package → .vsix
+npm run package        # produces minimax-copilot-0.1.0.vsix
+code --install-extension minimax-copilot-0.1.0.vsix
 ```
+
+Or install via the Extensions panel: `...` → **Install from VSIX...** → select the file.
+
+---
+
+## Setup (first use)
+
+After installation, the **Get Started** walkthrough guides you through setup. You can also complete these steps manually:
+
+### 1. Get a MiniMax API key
+
+Sign up at one of the following (choose the region that matches your location):
+
+- **International:** [platform.minimax.io](https://platform.minimax.io)
+- **China:** [platform.minimaxi.com](https://platform.minimaxi.com)
+
+Create an API key from your account dashboard → **API Keys**.
+
+### 2. Store your API key
+
+Open the Command Palette (`Ctrl+Shift+P`) and run:
+
+```
+MiniMax: Set API Key
+```
+
+Paste your key and press Enter. The key is stored in VS Code's **SecretStorage** — it is never written to settings files or shared.
+
+### 3. Choose your region
+
+Run ONE of the following from the Command Palette:
+
+| Command                          | Endpoint           |
+| -------------------------------- | ------------------ |
+| `MiniMax: Switch to Global API`  | `api.minimax.io`   |
+| `MiniMax: Switch to Chinese API` | `api.minimaxi.com` |
+
+> ⚠️ Using the wrong region for your key will result in **401 Unauthorized** errors.
+
+### 4. (Optional) Toggle adaptive thinking
+
+Thinking is **on by default** for M3 models. To turn it off:
+
+```
+MiniMax: Toggle Thinking
+```
+
+> **Note:** The collapsible "Thinking" block in Copilot Chat requires a VS Code build with the `languageModelThinkingPart` proposal active (Insiders / approved). On stable VS Code, chat works normally — the reasoning stream is included inline in the response.
+
+---
+
+## Usage
+
+### Start chatting
+
+1. Open **Copilot Chat** (`Ctrl+Shift+I`).
+2. Click the model picker dropdown (top-right of the chat panel).
+3. Select a MiniMax model (e.g., **MiniMax M3**).
+4. Type your prompt and press Enter.
+
+Your PAYG key is billed per token directly by MiniMax — no subscription required.
+
+### Available models
+
+| Model                      | ID                       | Context     | Thinking | Multimodal  | Best for                          |
+| -------------------------- | ------------------------ | ----------- | -------- | ----------- | --------------------------------- |
+| **MiniMax M3**             | `minimax-m3`             | 1M tokens   | ✅       | ✅ (images) | General coding, deep reasoning    |
+| **MiniMax M3 Priority**    | `minimax-m3-priority`    | 1M tokens   | ✅       | ✅ (images) | Low-latency M3 (higher cost)      |
+| **MiniMax M2.7**           | `minimax-m2.7`           | 200K tokens | ❌       | ❌          | Fast, cost-effective coding       |
+| **MiniMax M2.7 Highspeed** | `minimax-m2.7-highspeed` | 200K tokens | ❌       | ❌          | Quick completions, lowest latency |
+
+### PAYG pricing (USD per million tokens)
+
+| Model            | Input                 | Output                | Cache read |
+| ---------------- | --------------------- | --------------------- | ---------- |
+| M3 / M3 Priority | $0.30 (priority +50%) | $1.20 (priority +50%) | $0.06      |
+| M2.7             | $0.30                 | $1.20                 | $0.06      |
+| M2.7 Highspeed   | $0.60                 | $2.40                 | $0.06      |
+
+> China-region keys are billed in **¥** (CNY) at approximately the same rates.
+
+### Switching models mid-conversation
+
+Click the model picker in Copilot Chat at any time to switch models. Each request is independent — switching models does not lose chat context (Copilot Chat manages the message history).
+
+---
+
+## Settings
+
+Configure via **File → Preferences → Settings** (`Ctrl+,`) and search for `minimax`, or edit `settings.json` directly:
+
+| Setting                   | Type      | Default     | Description                                                                               |
+| ------------------------- | --------- | ----------- | ----------------------------------------------------------------------------------------- |
+| `minimax.apiBaseUrl`      | `string`  | `""` (auto) | Override the Anthropic-compatible base URL. Auto-picked from your chosen region.          |
+| `minimax.thinking`        | `boolean` | `true`      | Enable adaptive reasoning for M3 models. Has no effect on M2.7.                           |
+| `minimax.visibleModels`   | `array`   | `[]` (all)  | Model IDs to show in the picker. Example: `["minimax-m3", "minimax-m2.7"]`                |
+| `minimax.maxOutputTokens` | `number`  | `0`         | Output token cap per request. `0` = model decides.                                        |
+| `minimax.debugMode`       | `string`  | `"minimal"` | Log verbosity: `"minimal"`, `"metadata"`, or `"verbose"` (writes request bodies to disk). |
+
+---
+
+## Commands
+
+| Command              | Palette                          | Purpose                               |
+| -------------------- | -------------------------------- | ------------------------------------- |
+| **Set API Key**      | `MiniMax: Set API Key`           | Store your PAYG key in SecretStorage. |
+| **Clear API Key**    | `MiniMax: Clear API Key`         | Remove the stored key.                |
+| **Switch to Global** | `MiniMax: Switch to Global API`  | Use `api.minimax.io` endpoint.        |
+| **Switch to China**  | `MiniMax: Switch to Chinese API` | Use `api.minimaxi.com` endpoint.      |
+| **Toggle Thinking**  | `MiniMax: Toggle Thinking`       | Enable/disable M3 adaptive reasoning. |
+| **Show Logs**        | `MiniMax: Show Logs`             | Open the extension output channel.    |
+
+---
+
+## Troubleshooting
+
+### "401 Unauthorized" or "Invalid API key"
+
+- Verify your key is correct: run **MiniMax: Set API Key** again.
+- Make sure the region matches your account: Global keys → **Switch to Global API**, China keys → **Switch to Chinese API**.
+- Check that your MiniMax account has sufficient balance at the [billing page](https://platform.minimax.io/user-center/basic-information/account-manage).
+
+### Models don't appear in the picker
+
+- Ensure **GitHub Copilot Chat** is installed and you are signed in.
+- Check `minimax.visibleModels` — if set, only listed models appear. Clear it to show all.
+- Run **MiniMax: Show Logs** and check for error messages (set `minimax.debugMode` to `"verbose"` for full details).
+
+### Thinking block not rendering
+
+- The collapsible "Thinking" block requires a VS Code build where the `languageModelThinkingPart` proposal is active. This is available in **VS Code Insiders** or approved stable builds.
+- On standard stable VS Code, reasoning content is still delivered — it appears inline in the response text.
+- Ensure `minimax.thinking` is `true` and you are using an M3 model (M2.7 does not support thinking).
+
+### High latency or slow responses
+
+- M3 models may take longer due to adaptive reasoning. Switch to **MiniMax M2.7 Highspeed** for lower latency.
+- If using the China endpoint from outside China, expect higher network latency.
+
+---
+
+## Building from source
+
+```bash
+npm install          # install dependencies
+npm run compile      # esbuild → dist/extension.js
+npm test             # run test suite
+npm run package      # vsce package → .vsix
+npm run ltfb         # lint + typecheck + format + compile (full check)
+```
+
+---
 
 ## Attribution
 
