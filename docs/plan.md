@@ -6,13 +6,13 @@ Inspired by [`klarkxy/minimax-vscode`](https://github.com/klarkxy/minimax-vscode
 
 ---
 
-> **Progress:** ~~Phase 0~~ ✅ · **Phase 1** 🔧 · Phase 2 · Phase 3
+> **Progress:** ~~Phase 0~~ ✅ · ~~Phase 1~~ ✅ · **Phase 2** 🔧 · Phase 3
 
 | Phase                            | Status | Exit criteria                                                                                            |
 | -------------------------------- | :----: | -------------------------------------------------------------------------------------------------------- |
 | Phase 0 — Scaffold               |   ✅   | `F5` host logs `MiniMax PAYG Copilot activated`; `npm run compile`, `npm run lint`, `npm test` all green |
-| Phase 1 — PAYG chat              |   🔧   | Pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works               |
-| Phase 2 — Thinking + collapsible |   —    | Collapsible "Thinking" block in Copilot Chat; verbose dump shows the `thinking` field                    |
+| Phase 1 — PAYG chat              |   ✅   | Pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works               |
+| Phase 2 — Thinking + collapsible |   🔧   | Collapsible "Thinking" block in Copilot Chat; verbose dump shows the `thinking` field                    |
 | Phase 3 — Polish                 |   —    | Error toasts, walkthrough, README (en+zh), `vsce package` smoke test                                     |
 
 ---
@@ -58,23 +58,23 @@ Copilot Chat renders `LanguageModelThinkingPart` (VS Code proposed API `language
 ```
 src/
 ├── activate.ts              # entrypoint: register provider + commands
-├── consts.ts                # hosts, endpoints, secret key, default URLs
-├── types.ts                 # Anthropic message / usage / thinking types
+├── consts.ts                # hosts, endpoints, secret key, default URLs, pricing
+├── types.ts                 # Anthropic message / usage / thinking type re-exports
 ├── config.ts                # accessors for minimax.* settings
-├── i18n.ts                  # en + zh
-├── logger.ts                # output channel + redaction
+├── i18n.ts                  # en + zh message dictionary + locale detection
+├── logger.ts                # output channel + redaction + verbose dump
 ├── models/
 │   └── registry.ts          # M3 / M3-Priority / M2.7 / M2.7-highspeed + pricing tooltip
-├── auth.ts                  # single key in SecretStorage + onDidChangeApiKey
+├── auth.ts                  # single key in SecretStorage + onDidChangeApiKey emitter
 ├── client/
-│   ├── client.ts            # @anthropic-ai/sdk wrapper; SSE → text + thinking parts
-│   ├── convert.ts           # vscode messages → Anthropic messages (incl. thinking replay)
-│   └── error.ts             # 401/402/429/5xx → toasts
+│   ├── client.ts            # @anthropic-ai/sdk wrapper; SSE → text + thinking stubs
+│   ├── convert.ts           # vscode messages → Anthropic messages (thinking replay: Phase 2)
+│   └── error.ts             # 401/402/429/5xx → i18n toasts + billing deep link
 ├── provider/
 │   ├── index.ts             # MiniMaxChatProvider (LanguageModelChatProvider)
-│   └── models.ts            # toChatInfo(): picker entries
+│   └── models.ts            # buildChatInformation(): filtered picker entries
 └── runtime/
-    ├── commands.ts          # set/clear key, switch endpoint, toggle thinking, logs
+    ├── commands.ts          # set/clear key, switch endpoint, toggle thinking, show logs
     └── endpoint.ts          # auto-pick apiBaseUrl from vscode.env.language
 ```
 
@@ -218,6 +218,6 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 ## Next action
 
-**Phase 0 done.** The scaffold compiles, lints, and logs activation.
+**Phase 1 done.** All 14 source files implemented and passing `ltfb` (lint, typecheck, format, build). PAYG chat works with a MiniMax key: models surface in the picker, streamed text responses work, cross-locale region switch functions, and error toasts display with a 402 billing deep link.
 
-Now on **Phase 1 — PAYG chat**: implement `consts.ts`, `types.ts`, `config.ts`, `models/registry.ts`, `auth.ts`, `client/*`, `provider/*`, `runtime/commands` + `endpoint`, `i18n.ts`, `logger.ts`. Exit: pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works. Then Phase 2 → 3 per §9.
+Now on **Phase 2 — Thinking + collapsible:** wire `LanguageModelThinkingPart` (proposed API) for collapsible reasoning blocks, implement thinking replay with signatures in `convert.ts`, and verify via verbose dump. Exit: a collapsible "Thinking" block renders in Copilot Chat on a proposal‑active build; verbose dump shows the `thinking` field. Then Phase 3 per §9.
