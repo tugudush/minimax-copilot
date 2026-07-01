@@ -74,10 +74,10 @@
         ]
       }
     ],
-    "languageModelProviders": [
+    "languageModelChatProviders": [
       {
-        "id": "minimax",
-        "vendor": "minimax"
+        "vendor": "minimax",
+        "displayName": "MiniMax"
       }
     ],
     "commands": [
