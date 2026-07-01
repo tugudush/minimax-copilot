@@ -24,9 +24,9 @@ export function showErrorToast(statusOrMessage: number | string): void {
       case 402: {
         const url = billingUrl()
         vscode.window
-          .showErrorMessage(t('error.402'), 'Top Up')
+          .showErrorMessage(t('error.402'), t('error.topUp'))
           .then((action) => {
-            if (action === 'Top Up') {
+            if (action === t('error.topUp')) {
               void vscode.env.openExternal(vscode.Uri.parse(url))
             }
           })
