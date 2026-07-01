@@ -1,4 +1,8 @@
 import * as vscode from 'vscode';
+import { initI18n } from './i18n';
+import * as logger from './logger';
+import { MiniMaxChatProvider } from './provider/index';
+import { registerCommands } from './runtime/commands';
 
 /**
  * MiniMax PAYG Copilot — entry point.
@@ -9,8 +13,8 @@ import * as vscode from 'vscode';
  * refresh reaches a live listener.
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-  const logger = vscode.window.createOutputChannel('MiniMax PAYG Copilot', { log: true });
-  context.subscriptions.push(logger);
+  // Initialize locale-aware strings.
+  initI18n();
 
   logger.info('MiniMax PAYG Copilot activated');
   logger.info(`VS Code ${vscode.version} — language: ${vscode.env.language}`);
@@ -27,11 +31,23 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     logger.warn('Could not activate Copilot Chat — is it installed?');
   }
 
-  // TODO (Phase 1): register chat provider, commands, auth listener.
-  // TODO (Phase 2): wire thinking + collapsible reasoning block.
+  // Register the chat provider — this is what surfaces MiniMax models
+  // in the Copilot Chat model picker.
+  const provider = new MiniMaxChatProvider(context);
+  context.subscriptions.push(vscode.lm.registerLanguageModelChatProvider('minimax', provider));
+  context.subscriptions.push({
+    dispose: () => {
+      provider.dispose();
+    },
+  });
+
+  // Register user-facing commands (set/clear key, switch endpoint, etc.).
+  registerCommands(context);
+
+  logger.info('Phase 1 provider and commands registered');
 }
 
 /** Called when the extension is deactivated. */
 export function deactivate(): void {
-  // TODO (Phase 1): dispose provider subscriptions.
+  logger.dispose();
 }
