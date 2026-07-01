@@ -19,7 +19,11 @@ import { getApiKey, onDidChangeApiKey } from '../auth'
 import { buildChatInformation } from './models'
 import { findModel } from '../models/registry'
 import { maxOutputTokens } from '../config'
-import { convertMessages } from '../client/convert'
+import {
+  convertMessages,
+  convertTools,
+  extractToolResultText,
+} from '../client/convert'
 import { streamChat } from '../client/client'
 import * as logger from '../logger'
 import { t } from '../i18n'
@@ -82,7 +86,7 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
   async provideLanguageModelChatResponse(
     model: vscode.LanguageModelChatInformation,
     messages: readonly vscode.LanguageModelChatRequestMessage[],
-    _options: vscode.ProvideLanguageModelChatResponseOptions,
+    options: vscode.ProvideLanguageModelChatResponseOptions,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     progress: vscode.Progress<any>,
     token: vscode.CancellationToken
@@ -103,7 +107,77 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
       return
     }
 
-    logger.info(`Chat request: model=${model.id}, messages=${messages.length}`)
+    logger.info(
+      `Chat request: model=${model.id}, messages=${messages.length}, toolMode=${options.toolMode}, tools=${options.tools?.length ?? 0}`
+    )
+
+    // Diagnostic: log the shape of every tool-result content part so we can
+    // root-cause tool-call loops (e.g. tool_result content collapsing to
+    // "(empty)" because parts aren't LanguageModelTextPart). Safe to remove
+    // once the loop bug is confirmed fixed.
+    try {
+      for (const m of messages) {
+        const parts = (m as { content?: unknown }).content
+        if (!Array.isArray(parts)) continue
+        for (const part of parts) {
+          const p = part as {
+            callId?: string
+            name?: unknown
+            content?: unknown
+          }
+          if (typeof p.callId !== 'string') continue
+          // A tool CALL part has `name`; a tool RESULT part does not.
+          if (typeof p.name === 'string') continue
+          const raw = p.content
+          let arr: unknown[]
+          if (Array.isArray(raw)) {
+            arr = raw
+          } else if (raw && typeof raw === 'object' && 'content' in raw) {
+            const inner = (raw as { content?: unknown }).content
+            arr = Array.isArray(inner) ? inner : []
+          } else {
+            arr = []
+          }
+          const extracted = extractToolResultText(raw)
+          for (let i = 0; i < arr.length; i++) {
+            const c: unknown = arr[i]
+            let label: string
+            if (c === null || c === undefined) {
+              label = 'null'
+            } else if (typeof c !== 'object') {
+              label = typeof c
+            } else {
+              const obj = c as Record<string, unknown>
+              const keys = Object.keys(obj).slice(0, 10).join(',')
+              if ('value' in obj && typeof obj.value === 'string') {
+                label = `TextPart(${keys})`
+              } else if ('data' in obj && 'mimeType' in obj) {
+                label = `DataPart(${keys})`
+              } else if ('value' in obj) {
+                label = `PromptTsxPart(${keys})`
+              } else {
+                label = `Object(${keys})`
+              }
+            }
+            let snippet = ''
+            try {
+              const s = JSON.stringify(c)
+              snippet = typeof s === 'string' ? s.slice(0, 300) : ''
+            } catch {
+              snippet = '[unserializable]'
+            }
+            logger.info(
+              `[toolresult-diag] callId=${p.callId} part[${i}] ${label} snippet=${snippet}`
+            )
+          }
+          logger.info(
+            `[toolresult-diag] callId=${p.callId} extractedLen=${extracted.length} extracted=${extracted.slice(0, 300)}`
+          )
+        }
+      }
+    } catch {
+      // Diagnostics must never break the request.
+    }
 
     // Advance the turn counter for stable thinking block ids.
     const turn = this.turnIndex++
@@ -119,6 +193,10 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
     const configMax = maxOutputTokens()
     const maxTokens = configMax > 0 ? configMax : 4096
 
+    // Convert tools (if any) so the model can call them via the API
+    // instead of hallucinating tool-call markup as text.
+    const tools = convertTools(options.tools)
+
     // Stream. The client will populate `this.thinkingSignatures` with
     // any new thinking-block signatures returned by the server.
     await streamChat(
@@ -130,7 +208,9 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
       progress,
       token,
       this.thinkingSignatures,
-      turn
+      turn,
+      tools,
+      options.toolMode
     )
   }
 
