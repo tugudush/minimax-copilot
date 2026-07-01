@@ -434,3 +434,77 @@ cp dist/extension.js ~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-
 Reload VS Code, then rerun the git scenario. If it still repeats, inspect the
 newest verbose request body next; at this point the role-shaped payload should
 be the first thing to verify live.
+
+---
+
+## 8. RESOLVED — the §7 fix stopped the loop (2026-07-01, 23:50)
+
+After redeploying the `dist/extension.js` containing the §7 role-mapping fix
+and reloading VS Code, the original scenario was re-run end-to-end:
+
+> Open the workspace, ask Copilot Chat (MiniMax M3) to "check the repo state,
+> then stage, commit and push."
+
+Observed behavior:
+
+- Copilot called `git status` **exactly once**.
+- It read the output, then proceeded to `git add -A`, `git commit`, and
+  `git push origin feature/usage` without re-proposing any verification
+  command.
+- No `git branch --show-current`, `git log`, `git show-ref`, or `git status`
+  repeats; the conversation converged on the first response that contained
+  the full add/commit/push sequence.
+
+This was independently verified by running the §1–§7 scenario against the
+`feature/usage` branch — which is exactly the commit (`55d2367`) that
+introduced and landed this fix. The fix is live and the reported symptom is
+gone.
+
+### Final fix tally (what was actually shipped)
+
+| §     | Hypothesis                                                                  | Status                           |
+|-------|-----------------------------------------------------------------------------|----------------------------------|
+| §3    | `content.content` `LanguageModelToolResult` wrapper                         | Real bug, fixed, but not the loop cause |
+| §5    | Non-text part types (`PromptTsxPart`, `DataPart`) returning `''`            | Real bug, fixed, but not the loop cause |
+| §6    | `cache_control` synthetic marker polluting extracted text                    | Real bug, fixed, but not the loop cause |
+| §7    | **Wrong VS Code role mapping** (User=1, Assistant=2, no public System role) | **Real bug, fixed, loop RESOLVED**  |
+
+Each prior "real bug, not the loop cause" fix was independently valuable and
+should stay in the codebase — they were masking the role-mapping bug behind
+silent stripping of malformed-but-still-accepted request bodies. The model
+appeared to receive valid `tool_use`/`tool_result` pairs because every turn's
+malformed body was still 200-OK at the API layer; the conversational structure
+inside those bodies was simply unrecoverable until roles were corrected.
+
+### Updated repro recipe (for future regressions)
+
+1. Pick any git workspace.
+2. Ensure MiniMax M3 is the active Copilot Chat model.
+3. Prompt: *"check the repo state, then stage, commit and push to the current
+   branch."*
+4. Expect: one `git status`, then `git add` / `git commit -m "…"` /
+   `git push` in sequence, with a single final assistant message summarizing
+   what was done. **No re-proposal** of `git status` after the first result.
+
+### Outstanding follow-ups (non-blocking, tracked separately)
+
+- Remove the diagnostic log lines now that the bug is confirmed fixed:
+  - `[toolresult-diag]` in `src/provider/index.ts`.
+  - `[stream-diag] tool_choice forced to "any"` and
+    `[stream-diag] stop_reason=` in `src/client/client.ts`.
+  These were added specifically to confirm each hypothesis and can come out
+  in a small follow-up commit once the team is confident no regression
+  sneaks back in.
+- Consider extracting the role constants (`ROLE_SYSTEM = 0`,
+  `ROLE_USER = 1`, `ROLE_ASSISTANT = 2`) and the `convertRole` mapping into
+  a small standalone module so they cannot drift again. The
+  `node_modules/@types/vscode/index.d.ts` `LanguageModelChatMessageRole`
+  enum is the single source of truth — current values at the time of this
+  fix are `User = 1`, `Assistant = 2`, no public `System`.
+
+**CLOSING LESSON:** every prior section (§3, §5, §6) shipped a real bug fix
+that did not, by itself, end the loop. The repeated mistake was treating a
+working hypothesis-test as proof of resolution. The reliable signal is
+always: **reload → new recording → new log → verify the original symptom is
+gone in the recorded conversation**. The §7 role-mapping fix is the first
+one that survives that bar.
