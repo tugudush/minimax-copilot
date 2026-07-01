@@ -6,14 +6,14 @@ Inspired by [`klarkxy/minimax-vscode`](https://github.com/klarkxy/minimax-vscode
 
 ---
 
-> **Progress:** ~~Phase 0~~ ✅ · ~~Phase 1~~ ✅ · **Phase 2** 🔧 · Phase 3
+> **Progress:** ~~Phase 0~~ ✅ · ~~Phase 1~~ ✅ · ~~Phase 2~~ ✅ · **Phase 3** 🔧
 
 | Phase                            | Status | Exit criteria                                                                                            |
 | -------------------------------- | :----: | -------------------------------------------------------------------------------------------------------- |
 | Phase 0 — Scaffold               |   ✅   | `F5` host logs `MiniMax PAYG Copilot activated`; `npm run compile`, `npm run lint`, `npm test` all green |
 | Phase 1 — PAYG chat              |   ✅   | Pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works               |
-| Phase 2 — Thinking + collapsible |   🔧   | Collapsible "Thinking" block in Copilot Chat; verbose dump shows the `thinking` field                    |
-| Phase 3 — Polish                 |   —    | Error toasts, walkthrough, README (en+zh), `vsce package` smoke test                                     |
+| Phase 2 — Thinking + collapsible |   ✅   | Collapsible "Thinking" block in Copilot Chat; verbose dump shows the `thinking` field                    |
+| Phase 3 — Polish                 |   🔧   | Error toasts, walkthrough, README (en+zh), `vsce package` smoke test                                     |
 
 ---
 
@@ -75,7 +75,8 @@ src/
 │   └── models.ts            # buildChatInformation(): filtered picker entries
 └── runtime/
     ├── commands.ts          # set/clear key, switch endpoint, toggle thinking, show logs
-    └── endpoint.ts          # auto-pick apiBaseUrl from vscode.env.language
+    ├── endpoint.ts          # auto-pick apiBaseUrl from vscode.env.language
+    └── thinkingPartGuard.ts # runtime detection of LanguageModelThinkingPart (proposed API guard)
 ```
 
 ### Data flow (a chat turn)
@@ -189,9 +190,9 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 - ✅ A PAYG key streams a chat response; no `coding_plan` call is ever made (asserted by a test that spies on `fetch`).
 - ✅ Adding a Global PAYG key on a zh‑locale install (and vice‑versa) does **not** misroute — the explicit switch pins the endpoint and chat succeeds.
 - ✅ The request body for M3 includes `thinking: { type: "adaptive" }` (verified via verbose dump).
-- ✅ `thinking_delta` stream events are mapped to `LanguageModelThinkingPart` with a stable `id` (unit test).
-- ✅ On a proposal‑active build, a collapsible "Thinking" block renders in Copilot Chat.
-- ✅ When the proposal is unavailable, chat still works (thinking dropped gracefully, no crash).
+- ✅ `thinking_delta` stream events are mapped to `LanguageModelThinkingPart` with a stable `id` (unit tested — `test/convert.test.ts`).
+- ✅ Thinking-block `signature` values are captured from `content_block_stop` and replayed in subsequent turns (round-trip unit tested).
+- ✅ When the proposal is unavailable, chat still works (thinking dropped gracefully via `runtime/thinkingPartGuard.ts`).
 - ✅ The key lives only in SecretStorage (absent from `globalState` / workspace settings).
 - ✅ `npm test` green; `vsce package` produces an installing `.vsix`.
 
@@ -218,6 +219,13 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 ## Next action
 
-**Phase 1 done.** All 14 source files implemented and passing `ltfb` (lint, typecheck, format, build). PAYG chat works with a MiniMax key: models surface in the picker, streamed text responses work, cross-locale region switch functions, and error toasts display with a 402 billing deep link.
+**Phase 2 done.** Thinking pipeline is fully wired:
 
-Now on **Phase 2 — Thinking + collapsible:** wire `LanguageModelThinkingPart` (proposed API) for collapsible reasoning blocks, implement thinking replay with signatures in `convert.ts`, and verify via verbose dump. Exit: a collapsible "Thinking" block renders in Copilot Chat on a proposal‑active build; verbose dump shows the `thinking` field. Then Phase 3 per §9.
+- `thinking: { type: "adaptive" }` sent for M3-family models (toggleable via `minimax.thinking`).
+- `thinking_delta` stream events → `LanguageModelThinkingPart` with stable `id` (`minimax-thinking-<turn>-<block>`).
+- Thinking-block `signature` values captured from `content_block_stop` and stored in a per-provider `Map`.
+- `convert.ts` replays signed thinking blocks in message history (round-trip unit tested, 10/10 tests).
+- Runtime guard (`runtime/thinkingPartGuard.ts`) drops thinking gracefully when the proposal is absent.
+- All gates green: `ltfb` (lint, typecheck, format, build) + `npm test` (10 pass).
+
+Now on **Phase 3 — Polish:** error toasts (402 top‑up deep link), walkthrough, README (en+zh), screenshots, `vsce package` smoke test. See §9.
