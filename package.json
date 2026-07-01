@@ -28,7 +28,6 @@
     "ai",
     "llm"
   ],
-  "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
     "walkthroughs": [
