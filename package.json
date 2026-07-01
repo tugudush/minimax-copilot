@@ -28,7 +28,6 @@
     "ai",
     "llm"
   ],
-  "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
     "walkthroughs": [
@@ -75,10 +74,10 @@
         ]
       }
     ],
-    "languageModelProviders": [
+    "languageModelChatProviders": [
       {
-        "id": "minimax",
-        "vendor": "minimax"
+        "vendor": "minimax",
+        "displayName": "MiniMax"
       }
     ],
     "commands": [

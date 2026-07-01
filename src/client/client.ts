@@ -48,7 +48,9 @@ export async function streamChat(
   progress: vscode.Progress<any>,
   token: vscode.CancellationToken,
   thinkingSignatures?: Map<string, string>,
-  turnIndex?: number
+  turnIndex?: number,
+  tools?: { name: string; description: string; input_schema: object }[],
+  toolMode?: number
 ): Promise<void> {
   const baseUrl = resolveBaseUrl()
 
@@ -77,11 +79,34 @@ export async function streamChat(
     }
   }
 
+  // Tools: pass through to the API so the model can call them via
+  // tool_use content blocks instead of hallucinating tool-call text.
+  if (tools && tools.length > 0) {
+    ;(params as unknown as Record<string, unknown>).tools = tools
+    // toolMode 2 = Required → force a tool call.
+    if (toolMode === 2) {
+      ;(params as unknown as Record<string, unknown>).tool_choice = {
+        type: 'any',
+      }
+      logger.info(
+        '[stream-diag] tool_choice forced to "any" (toolMode=Required)'
+      )
+    }
+  }
+
   logger.logRequest('POST', `${baseUrl}/v1/messages`, params)
 
   // Per-stream state: track in-flight thinking blocks so we can
   // capture signatures when the block completes.
   let thinkingBlockIdx = 0
+
+  // Track in-flight tool_use blocks by content-block index so we can
+  // accumulate input_json_delta fragments and emit a
+  // LanguageModelToolCallPart when the block completes.
+  const toolBlocks = new Map<
+    number,
+    { id: string; name: string; input: string }
+  >()
 
   try {
     const stream = await client.messages.create({
@@ -100,6 +125,16 @@ export async function streamChat(
           if (event.content_block.type === 'thinking') {
             // no-op — the block index is already known; we just note
             // that the next thinking_delta belongs to this block.
+          } else if (event.content_block.type === 'tool_use') {
+            const cb = event.content_block as unknown as {
+              id?: string
+              name?: string
+            }
+            toolBlocks.set(event.index, {
+              id: cb.id ?? `toolu_${event.index}_${Date.now()}`,
+              name: cb.name ?? '',
+              input: '',
+            })
           }
           break
         }
@@ -118,11 +153,20 @@ export async function streamChat(
             }
             // When the proposal is unavailable, drop silently — chat
             // still works, just without the reasoning block.
+          } else if (delta.type === 'input_json_delta') {
+            // Accumulate tool-use input fragments.
+            const d = delta as unknown as { partial_json?: string }
+            const block = toolBlocks.get(event.index)
+            if (block) {
+              block.input += d.partial_json ?? ''
+            }
           }
           break
         }
 
         case 'content_block_stop': {
+          const idx = event.index
+
           // Capture the completed thinking block's signature.
           // The SDK's RawContentBlockStopEvent only exposes {type, index}
           // at the type level, but the runtime object carries content_block.
@@ -137,6 +181,37 @@ export async function streamChat(
             }
             thinkingBlockIdx++
           }
+
+          // Emit a LanguageModelToolCallPart for completed tool_use blocks.
+          const toolBlock = toolBlocks.get(idx)
+          if (toolBlock) {
+            let input: object = {}
+            if (toolBlock.input) {
+              try {
+                input = JSON.parse(toolBlock.input) as object
+              } catch {
+                // Keep empty object on parse error.
+              }
+            }
+            progress.report(
+              new vscode.LanguageModelToolCallPart(
+                toolBlock.id,
+                toolBlock.name,
+                input
+              )
+            )
+            toolBlocks.delete(idx)
+          }
+          break
+        }
+
+        case 'message_delta': {
+          const stopReason = (
+            event as unknown as { delta?: { stop_reason?: string } }
+          ).delta?.stop_reason
+          if (stopReason) {
+            logger.info(`[stream-diag] stop_reason=${stopReason}`)
+          }
           break
         }
 
@@ -145,7 +220,7 @@ export async function streamChat(
         }
 
         default:
-          // message_start, message_delta, ping — no action needed
+          // message_start, ping — no action needed
           break
       }
     }

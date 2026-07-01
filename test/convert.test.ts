@@ -11,6 +11,10 @@ import assert from 'node:assert'
 import { convertMessages } from '../src/client/convert'
 import { THINKING_ID_PREFIX } from '../src/consts'
 
+const ROLE_SYSTEM = 0
+const ROLE_USER = 1
+const ROLE_ASSISTANT = 2
+
 // ---- Helpers ----
 
 /**
@@ -45,11 +49,17 @@ function msg(
   return { role, name: undefined, content: parts }
 }
 
+function toolMsg(role: number, ...content: unknown[]): MockMessage {
+  return { role, name: undefined, content }
+}
+
 interface ContentBlock {
   type: string
   thinking?: string
   signature?: string
   text?: string
+  content?: string
+  tool_use_id?: string
 }
 
 // ---- Tests ----
@@ -57,8 +67,8 @@ interface ContentBlock {
 describe('convertMessages', () => {
   it('extracts system messages to the top-level system field', () => {
     const { system, messages } = convertMessages([
-      msg(1, textPart('You are a helpful assistant.')),
-      msg(2, textPart('Hello')),
+      msg(ROLE_SYSTEM, textPart('You are a helpful assistant.')),
+      msg(ROLE_USER, textPart('Hello')),
     ])
 
     assert.strictEqual(system, 'You are a helpful assistant.')
@@ -70,9 +80,9 @@ describe('convertMessages', () => {
 
   it('concatenates multiple system messages', () => {
     const { system, messages } = convertMessages([
-      msg(1, textPart('Be helpful.')),
-      msg(1, textPart('Be concise.')),
-      msg(2, textPart('Hi')),
+      msg(ROLE_SYSTEM, textPart('Be helpful.')),
+      msg(ROLE_SYSTEM, textPart('Be concise.')),
+      msg(ROLE_USER, textPart('Hi')),
     ])
 
     assert.strictEqual(system, 'Be helpful.\nBe concise.')
@@ -81,8 +91,8 @@ describe('convertMessages', () => {
 
   it('converts user + assistant text messages', () => {
     const { system, messages } = convertMessages([
-      msg(2, textPart('What is 2+2?')),
-      msg(3, textPart('It is 4.')),
+      msg(ROLE_USER, textPart('What is 2+2?')),
+      msg(ROLE_ASSISTANT, textPart('It is 4.')),
     ])
 
     assert.strictEqual(system, undefined)
@@ -97,9 +107,9 @@ describe('convertMessages', () => {
 
   it('skips empty messages', () => {
     const { messages } = convertMessages([
-      msg(2, textPart('')),
-      msg(2, textPart('Hello')),
-      msg(3, textPart('')),
+      msg(ROLE_USER, textPart('')),
+      msg(ROLE_USER, textPart('Hello')),
+      msg(ROLE_ASSISTANT, textPart('')),
     ])
 
     assert.strictEqual(messages.length, 1)
@@ -108,7 +118,7 @@ describe('convertMessages', () => {
 
   it('handles multi-part user messages (multiple text parts)', () => {
     const { messages } = convertMessages([
-      msg(2, textPart('Part 1'), textPart('Part 2')),
+      msg(ROLE_USER, textPart('Part 1'), textPart('Part 2')),
     ])
 
     assert.strictEqual(messages.length, 1)
@@ -116,6 +126,130 @@ describe('convertMessages', () => {
     assert.strictEqual(content.length, 2)
     assert.strictEqual(content[0]!.text, 'Part 1')
     assert.strictEqual(content[1]!.text, 'Part 2')
+  })
+
+  it('converts tool calls and raw tool results', () => {
+    const { messages } = convertMessages([
+      toolMsg(ROLE_ASSISTANT, {
+        callId: 'call-1',
+        name: 'git_status',
+        input: { arg: '-s' },
+      }),
+      toolMsg(ROLE_USER, {
+        callId: 'call-1',
+        content: [{ value: 'M src/activate.ts' }],
+      }),
+    ])
+
+    assert.strictEqual(messages.length, 2)
+    assert.strictEqual(messages[0]!.role, 'assistant')
+    assert.deepStrictEqual(messages[0]!.content, [
+      {
+        type: 'tool_use',
+        id: 'call-1',
+        name: 'git_status',
+        input: { arg: '-s' },
+      },
+    ])
+    assert.strictEqual(messages[1]!.role, 'user')
+    assert.deepStrictEqual(messages[1]!.content, [
+      {
+        type: 'tool_result',
+        tool_use_id: 'call-1',
+        content: 'M src/activate.ts',
+      },
+    ])
+  })
+
+  it('converts tool results wrapped in a LanguageModelToolResult object containing a content array', () => {
+    const { messages } = convertMessages([
+      toolMsg(ROLE_USER, {
+        callId: 'call-1',
+        content: {
+          content: [{ value: 'M src/activate.ts' }, { value: '?? docs/' }],
+        },
+      }),
+    ])
+
+    assert.strictEqual(messages.length, 1)
+    assert.strictEqual(messages[0]!.role, 'user')
+    assert.deepStrictEqual(messages[0]!.content, [
+      {
+        type: 'tool_result',
+        tool_use_id: 'call-1',
+        content: 'M src/activate.ts\n?? docs/',
+      },
+    ])
+  })
+
+  it('extracts text from LanguageModelDataPart tool results (Uint8Array + mimeType)', () => {
+    // Reproduces the loop: command output returned as a DataPart (no .value),
+    // which previously collapsed to '(empty)' and made the model re-propose
+    // the same tool forever.
+    const out = 'M src/activate.ts\n?? docs/'
+    const { messages } = convertMessages([
+      toolMsg(ROLE_USER, {
+        callId: 'call-1',
+        content: [
+          { data: new TextEncoder().encode(out), mimeType: 'text/plain' },
+        ],
+      }),
+    ])
+
+    assert.strictEqual(messages.length, 1)
+    const block = (messages[0]!.content as ContentBlock[])[0]!
+    assert.strictEqual(block.type, 'tool_result')
+    assert.strictEqual(block.tool_use_id, 'call-1')
+    assert.strictEqual(block.content, out)
+  })
+
+  it('drops the synthetic cache_control DataPart instead of appending "[binary cache_control]" to real output', () => {
+    // Copilot Chat appends a { mimeType: 'cache_control', data: 'ephemeral' }
+    // marker part to some tool-result content arrays (a prompt-cache
+    // breakpoint hint, not real tool output). Previously this fell into the
+    // generic binary branch and got serialized as literal garbage text
+    // appended after the real result (e.g. "feature/usage\n[binary
+    // cache_control]"), polluting what the model reads back.
+    const { messages } = convertMessages([
+      toolMsg(ROLE_USER, {
+        callId: 'call-1',
+        content: [
+          { value: 'feature/usage' },
+          {
+            data: new TextEncoder().encode('ephemeral'),
+            mimeType: 'cache_control',
+          },
+        ],
+      }),
+    ])
+
+    assert.strictEqual(messages.length, 1)
+    const block = (messages[0]!.content as ContentBlock[])[0]!
+    assert.strictEqual(block.type, 'tool_result')
+    assert.strictEqual(block.content, 'feature/usage')
+  })
+
+  it('preserves LanguageModelPromptTsxPart tool results instead of dropping them to empty', () => {
+    // Copilot Chat agent-mode tool results are frequently PromptTsxParts
+    // whose .value is a rendered tree (not a plain string). These must not
+    // collapse to '(empty)'.
+    const { messages } = convertMessages([
+      toolMsg(ROLE_USER, {
+        callId: 'call-1',
+        content: [{ value: { kind: 'text', text: 'On branch main' } }],
+      }),
+    ])
+
+    assert.strictEqual(messages.length, 1)
+    const block = (messages[0]!.content as ContentBlock[])[0]!
+    assert.strictEqual(block.type, 'tool_result')
+    assert.strictEqual(block.tool_use_id, 'call-1')
+    // The whole part is serialized so the content survives for the model.
+    assert.strictEqual(
+      block.content,
+      '{"value":{"kind":"text","text":"On branch main"}}'
+    )
+    assert.notStrictEqual(block.content, '(empty)')
   })
 })
 
@@ -127,9 +261,9 @@ describe('thinking replay', () => {
 
     const { messages } = convertMessages(
       [
-        msg(2, textPart('Explain recursion.')),
+        msg(ROLE_USER, textPart('Explain recursion.')),
         msg(
-          3,
+          ROLE_ASSISTANT,
           thinkingPart('Let me think about this step by step...', thinkingId),
           textPart('Recursion is when a function calls itself.')
         ),
@@ -155,7 +289,7 @@ describe('thinking replay', () => {
     const { messages } = convertMessages(
       [
         msg(
-          3,
+          ROLE_ASSISTANT,
           thinkingPart('Some reasoning...', thinkingId),
           textPart('Answer.')
         ),
@@ -173,7 +307,11 @@ describe('thinking replay', () => {
     const thinkingId = `${THINKING_ID_PREFIX}-2-0`
 
     const { messages } = convertMessages([
-      msg(3, thinkingPart('Reasoning...', thinkingId), textPart('Done.')),
+      msg(
+        ROLE_ASSISTANT,
+        thinkingPart('Reasoning...', thinkingId),
+        textPart('Done.')
+      ),
     ])
 
     const b0 = (messages[0]!.content as ContentBlock[])[0]!
@@ -185,7 +323,11 @@ describe('thinking replay', () => {
   it('thinking parts in user messages are treated as thinking blocks (safe)', () => {
     const thinkingId = `${THINKING_ID_PREFIX}-0-0`
     const { messages } = convertMessages([
-      msg(2, thinkingPart('User cannot think...', thinkingId), textPart('Hi')),
+      msg(
+        ROLE_USER,
+        thinkingPart('User cannot think...', thinkingId),
+        textPart('Hi')
+      ),
     ])
 
     assert.strictEqual(messages.length, 1)
@@ -200,7 +342,7 @@ describe('thinking replay', () => {
     const { messages } = convertMessages(
       [
         msg(
-          3,
+          ROLE_ASSISTANT,
           thinkingPart('First thought.', `${THINKING_ID_PREFIX}-1-0`),
           textPart('Mid'),
           thinkingPart('Second thought.', `${THINKING_ID_PREFIX}-1-1`),
