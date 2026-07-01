@@ -8,12 +8,12 @@ Inspired by [`klarkxy/minimax-vscode`](https://github.com/klarkxy/minimax-vscode
 
 > **Progress:** ~~Phase 0~~ ✅ · **Phase 1** 🔧 · Phase 2 · Phase 3
 
-| Phase | Status | Exit criteria |
-| --- | :---: | --- |
-| Phase 0 — Scaffold | ✅ | `F5` host logs `MiniMax PAYG Copilot activated`; `npm run compile`, `npm run lint`, `npm test` all green |
-| Phase 1 — PAYG chat | 🔧 | Pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works |
-| Phase 2 — Thinking + collapsible | — | Collapsible "Thinking" block in Copilot Chat; verbose dump shows the `thinking` field |
-| Phase 3 — Polish | — | Error toasts, walkthrough, README (en+zh), `vsce package` smoke test |
+| Phase                            | Status | Exit criteria                                                                                            |
+| -------------------------------- | :----: | -------------------------------------------------------------------------------------------------------- |
+| Phase 0 — Scaffold               |   ✅   | `F5` host logs `MiniMax PAYG Copilot activated`; `npm run compile`, `npm run lint`, `npm test` all green |
+| Phase 1 — PAYG chat              |   🔧   | Pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works               |
+| Phase 2 — Thinking + collapsible |   —    | Collapsible "Thinking" block in Copilot Chat; verbose dump shows the `thinking` field                    |
+| Phase 3 — Polish                 |   —    | Error toasts, walkthrough, README (en+zh), `vsce package` smoke test                                     |
 
 ---
 

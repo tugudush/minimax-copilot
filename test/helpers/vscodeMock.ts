@@ -9,66 +9,66 @@
 // ---- Fake memento (in-memory globalState) ----
 
 export class FakeMemento {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	private store = new Map<string, any>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private store = new Map<string, any>();
 
-	get(key: string): unknown {
-		return this.store.get(key);
-	}
+  get(key: string): unknown {
+    return this.store.get(key);
+  }
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	update(key: string, value: any): Thenable<void> {
-		this.store.set(key, value);
-		return Promise.resolve();
-	}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  update(key: string, value: any): Thenable<void> {
+    this.store.set(key, value);
+    return Promise.resolve();
+  }
 
-	reset(): void {
-		this.store.clear();
-	}
+  reset(): void {
+    this.store.clear();
+  }
 }
 
 // ---- Fake SecretStorage ----
 
 export class FakeSecrets {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	private store = new Map<string, any>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _store = new Map<string, any>();
 
-	get(key: string): Thenable<string | undefined> {
-		return Promise.resolve(this.store.get(key) as string | undefined);
-	}
+  get(key: string): Thenable<string | undefined> {
+    return Promise.resolve(this._store.get(key) as string | undefined);
+  }
 
-	store(key: string, value: string): Thenable<void> {
-		this.store.set(key, value);
-		return Promise.resolve();
-	}
+  store(key: string, value: string): Thenable<void> {
+    this._store.set(key, value);
+    return Promise.resolve();
+  }
 
-	delete(key: string): Thenable<void> {
-		this.store.delete(key);
-		return Promise.resolve();
-	}
+  delete(key: string): Thenable<void> {
+    this._store.delete(key);
+    return Promise.resolve();
+  }
 
-	reset(): void {
-		this.store.clear();
-	}
+  reset(): void {
+    this._store.clear();
+  }
 }
 
 // ---- Shared mock state (process-wide singleton, reset each test) ----
 
 export const mockState = {
-	informationMessages: [] as string[],
-	warningMessages: [] as string[],
-	errorMessages: [] as string[],
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	quickPickItems: [] as any[],
-	executedCommands: [] as string[],
+  informationMessages: [] as string[],
+  warningMessages: [] as string[],
+  errorMessages: [] as string[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  quickPickItems: [] as any[],
+  executedCommands: [] as string[],
 
-	reset(): void {
-		this.informationMessages = [];
-		this.warningMessages = [];
-		this.errorMessages = [];
-		this.quickPickItems = [];
-		this.executedCommands = [];
-	},
+  reset(): void {
+    this.informationMessages = [];
+    this.warningMessages = [];
+    this.errorMessages = [];
+    this.quickPickItems = [];
+    this.executedCommands = [];
+  },
 };
 
 // Process‑wide mock of `vscode.workspace.getConfiguration`.
@@ -80,6 +80,6 @@ export const mockConfig: Record<string, any> = {};
 // Track calls to vscode.env.openExternal so tests can assert the
 // right platform URLs were targeted (e.g. 402 top‑up link).
 export function getOpenExternalCalls(): string[] {
-	const calls: unknown = (mockConfig as Record<string, unknown>).openExternalCalls;
-	return Array.isArray(calls) ? (calls as string[]) : [];
+  const calls: unknown = (mockConfig as Record<string, unknown>).openExternalCalls;
+  return Array.isArray(calls) ? (calls as string[]) : [];
 }

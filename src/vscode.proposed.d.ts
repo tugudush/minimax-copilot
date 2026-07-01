@@ -11,30 +11,30 @@
  * @see https://raw.githubusercontent.com/microsoft/vscode/main/src/vscode-dts/vscode.proposed.languageModelThinkingPart.d.ts
  */
 declare module 'vscode' {
-	/**
-	 * A language model response part containing reasoning/thinking
-	 * content. When emitted by a chat provider, Copilot Chat renders
-	 * it as a collapsible "Thinking" block.
-	 */
-	export class LanguageModelThinkingPart {
-		/** The reasoning text, or an array of reasoning blocks. */
-		value: string | string[];
+  /**
+   * A language model response part containing reasoning/thinking
+   * content. When emitted by a chat provider, Copilot Chat renders
+   * it as a collapsible "Thinking" block.
+   */
+  export class LanguageModelThinkingPart {
+    /** The reasoning text, or an array of reasoning blocks. */
+    value: string | string[];
 
-		/**
-		 * Optional stable identifier for this thinking block.
-		 * Copilot Chat uses this to render the stateful
-		 * collapsible `ThinkingDataContainer`. Without an id
-		 * the part may render as inline text.
-		 */
-		id?: string;
+    /**
+     * Optional stable identifier for this thinking block.
+     * Copilot Chat uses this to render the stateful
+     * collapsible `ThinkingDataContainer`. Without an id
+     * the part may render as inline text.
+     */
+    id?: string;
 
-		/** Optional metadata bag. */
-		metadata?: Readonly<Record<string, unknown>>;
+    /** Optional metadata bag. */
+    metadata?: Readonly<Record<string, unknown>>;
 
-		/**
-		 * @param value The reasoning text.
-		 * @param id Optional stable identifier for the block.
-		 */
-		constructor(value: string, id?: string);
-	}
+    /**
+     * @param value The reasoning text.
+     * @param id Optional stable identifier for the block.
+     */
+    constructor(value: string, id?: string);
+  }
 }

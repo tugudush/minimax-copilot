@@ -25,13 +25,13 @@ A minimal VS Code extension that surfaces **MiniMax M3 / M2.7** inside **GitHub 
 
 ## Settings
 
-| Setting | Default | Purpose |
-| --- | --- | --- |
-| `minimax.apiBaseUrl` | auto | Anthropic base URL; auto‑picked from locale. |
-| `minimax.thinking` | `true` | M3 adaptive reasoning on/off. |
-| `minimax.visibleModels` | all | Restrict picker entries. |
-| `minimax.maxOutputTokens` | `0` | Output cap (`0` = model decides). |
-| `minimax.debugMode` | `minimal` | Verbosity: `minimal` / `metadata` / `verbose`. |
+| Setting                   | Default   | Purpose                                        |
+| ------------------------- | --------- | ---------------------------------------------- |
+| `minimax.apiBaseUrl`      | auto      | Anthropic base URL; auto‑picked from locale.   |
+| `minimax.thinking`        | `true`    | M3 adaptive reasoning on/off.                  |
+| `minimax.visibleModels`   | all       | Restrict picker entries.                       |
+| `minimax.maxOutputTokens` | `0`       | Output cap (`0` = model decides).              |
+| `minimax.debugMode`       | `minimal` | Verbosity: `minimal` / `metadata` / `verbose`. |
 
 ## Commands
 

@@ -1,45 +1,34 @@
 {
-	"folders": [
-		{ "path": "." }
-	],
-	"settings": {
-		"typescript.tsdk": "node_modules/typescript/lib",
-		"editor.codeActionsOnSave": {
-			"source.fixAll.eslint": "explicit"
-		}
-	},
-	"extensions": {
-		"recommendations": [
-			"dbaeumer.vscode-eslint",
-			"github.copilot-chat"
-		]
-	},
-	"launch": {
-		"version": "0.2.0",
-		"configurations": [
-			{
-				"name": "Launch Extension",
-				"type": "extensionHost",
-				"request": "launch",
-				"args": [
-					"--extensionDevelopmentPath=${workspaceFolder}"
-				],
-				"outFiles": [
-					"${workspaceFolder}/dist/**/*.js"
-				]
-			},
-			{
-				"name": "Run Extension Tests",
-				"type": "extensionHost",
-				"request": "launch",
-				"args": [
-					"--extensionDevelopmentPath=${workspaceFolder}",
-					"--extensionTestsPath=${workspaceFolder}/dist/test/index.js"
-				],
-				"outFiles": [
-					"${workspaceFolder}/dist/**/*.js"
-				]
-			}
-		]
-	}
+  "folders": [{ "path": "." }],
+  "settings": {
+    "typescript.tsdk": "node_modules/typescript/lib",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    }
+  },
+  "extensions": {
+    "recommendations": ["dbaeumer.vscode-eslint", "github.copilot-chat"]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Launch Extension",
+        "type": "extensionHost",
+        "request": "launch",
+        "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+        "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      },
+      {
+        "name": "Run Extension Tests",
+        "type": "extensionHost",
+        "request": "launch",
+        "args": [
+          "--extensionDevelopmentPath=${workspaceFolder}",
+          "--extensionTestsPath=${workspaceFolder}/dist/test/index.js"
+        ],
+        "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      }
+    ]
+  }
 }
