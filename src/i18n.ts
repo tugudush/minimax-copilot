@@ -102,6 +102,44 @@ const messages: Record<string, Record<Lang, string>> = {
     en: 'Set a MiniMax API key to use this model.',
     zh: '请设置 MiniMax API 密钥以使用此模型。',
   },
+
+  'error.topUp': {
+    en: 'Top Up',
+    zh: '充值',
+  },
+
+  'walkthrough.welcome.title': {
+    en: 'Get Started with MiniMax PAYG Copilot',
+    zh: 'MiniMax PAYG Copilot 入门',
+  },
+  'walkthrough.welcome.description': {
+    en: 'Set up your MiniMax API key, choose your region, and enable adaptive thinking.',
+    zh: '设置 MiniMax API 密钥，选择区域，启用自适应思维链。',
+  },
+  'walkthrough.setKey.title': {
+    en: 'Set API Key',
+    zh: '设置 API 密钥',
+  },
+  'walkthrough.setKey.description': {
+    en: 'Store your MiniMax PAYG API key securely.',
+    zh: '安全存储您的 MiniMax 按量付费 API 密钥。',
+  },
+  'walkthrough.chooseRegion.title': {
+    en: 'Choose Region',
+    zh: '选择区域',
+  },
+  'walkthrough.chooseRegion.description': {
+    en: 'Pick the China or Global endpoint for your account.',
+    zh: '为您的账户选择中国站或国际站。',
+  },
+  'walkthrough.thinking.title': {
+    en: 'Adaptive Thinking',
+    zh: '自适应思维链',
+  },
+  'walkthrough.thinking.description': {
+    en: 'M3 reasoning as a collapsible block in Copilot Chat.',
+    zh: 'M3 推理在 Copilot Chat 中显示为可折叠的思维链块。',
+  },
 }
 
 let currentLang: Lang = 'en'

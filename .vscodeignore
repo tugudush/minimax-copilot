@@ -2,11 +2,14 @@
 node_modules/
 src/**
 test/**
+docs/**
 *.vsix
-*.md
 .git/**
 .gitignore
+.env
+.prettierignore
+.prettierrc
 esbuild.config.mjs
 eslint.config.mjs
 tsconfig.json
-plan.md
+CHANGELOG.md

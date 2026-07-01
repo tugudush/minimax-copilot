@@ -28,10 +28,53 @@
     "ai",
     "llm"
   ],
-  "icon": "icon/icon.png",
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "walkthroughs": [
+      {
+        "id": "minimax.setup",
+        "title": "Get Started with MiniMax PAYG Copilot",
+        "description": "Set up your MiniMax API key, choose your region, and enable adaptive thinking.",
+        "steps": [
+          {
+            "id": "welcome",
+            "title": "Welcome",
+            "description": "MiniMax M3 in Copilot Chat with a pay‑as‑you‑go key.",
+            "media": {
+              "markdown": "walkthroughs/setup/welcome.md"
+            }
+          },
+          {
+            "id": "setKey",
+            "title": "Set API Key",
+            "description": "Store your MiniMax PAYG API key securely.",
+            "media": {
+              "markdown": "walkthroughs/setup/set-key.md"
+            },
+            "completionEvents": [
+              "onCommand:minimax.setApiKey"
+            ]
+          },
+          {
+            "id": "chooseRegion",
+            "title": "Choose Region",
+            "description": "Pick the China or Global endpoint for your account.",
+            "media": {
+              "markdown": "walkthroughs/setup/choose-region.md"
+            }
+          },
+          {
+            "id": "thinking",
+            "title": "Adaptive Thinking",
+            "description": "M3 reasoning as a collapsible block in Copilot Chat.",
+            "media": {
+              "markdown": "walkthroughs/setup/thinking.md"
+            }
+          }
+        ]
+      }
+    ],
     "languageModelProviders": [
       {
         "id": "minimax",

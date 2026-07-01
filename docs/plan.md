@@ -6,14 +6,14 @@ Inspired by [`klarkxy/minimax-vscode`](https://github.com/klarkxy/minimax-vscode
 
 ---
 
-> **Progress:** ~~Phase 0~~ ✅ · ~~Phase 1~~ ✅ · ~~Phase 2~~ ✅ · **Phase 3** 🔧
+> **Progress:** ~~Phase 0~~ ✅ · ~~Phase 1~~ ✅ · ~~Phase 2~~ ✅ · ~~Phase 3~~ ✅
 
 | Phase                            | Status | Exit criteria                                                                                            |
 | -------------------------------- | :----: | -------------------------------------------------------------------------------------------------------- |
 | Phase 0 — Scaffold               |   ✅   | `F5` host logs `MiniMax PAYG Copilot activated`; `npm run compile`, `npm run lint`, `npm test` all green |
 | Phase 1 — PAYG chat              |   ✅   | Pick MiniMax‑M3 with a PAYG key → streamed text response; cross‑locale region switch works               |
 | Phase 2 — Thinking + collapsible |   ✅   | Collapsible "Thinking" block in Copilot Chat; verbose dump shows the `thinking` field                    |
-| Phase 3 — Polish                 |   🔧   | Error toasts, walkthrough, README (en+zh), `vsce package` smoke test                                     |
+| Phase 3 — Polish                 |   ✅   | Error toasts, walkthrough, README (en+zh), `vsce package` smoke test                                     |
 
 ---
 
@@ -219,13 +219,17 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 ## Next action
 
-**Phase 2 done.** Thinking pipeline is fully wired:
+**All phases complete.** The extension is ready for release:
 
-- `thinking: { type: "adaptive" }` sent for M3-family models (toggleable via `minimax.thinking`).
-- `thinking_delta` stream events → `LanguageModelThinkingPart` with stable `id` (`minimax-thinking-<turn>-<block>`).
-- Thinking-block `signature` values captured from `content_block_stop` and stored in a per-provider `Map`.
-- `convert.ts` replays signed thinking blocks in message history (round-trip unit tested, 10/10 tests).
-- Runtime guard (`runtime/thinkingPartGuard.ts`) drops thinking gracefully when the proposal is absent.
-- All gates green: `ltfb` (lint, typecheck, format, build) + `npm test` (10 pass).
+- PAYG chat works with MiniMax M3 / M2.7 (no Token‑Plan probe, no region misrouting).
+- Adaptive thinking on by default with collapsible "Thinking" block (`LanguageModelThinkingPart`).
+- Thinking replay with signatures for multi‑turn conversations (10 unit tests).
+- Error toasts (401/402/403/429/5xx) with bilingual i18n and billing deep link.
+- Walkthrough guides new users through setup (4 steps).
+- Bilingual README (en + zh).
+- `vsce package` produces a clean `.vsix` (11 files, ~400 KB).
 
-Now on **Phase 3 — Polish:** error toasts (402 top‑up deep link), walkthrough, README (en+zh), screenshots, `vsce package` smoke test. See §9.
+**Release checklist:**
+- [ ] Verify in VS Code Insiders with a real PAYG key.
+- [ ] Take screenshots for the Marketplace listing.
+- [ ] Publish to the VS Code Marketplace (`vsce publish`).
