@@ -184,8 +184,16 @@ Scope: [src/client/convert.ts](../../src/client/convert.ts) (primary) +
    `getPartValue` returns `''` for them and they are skipped, preserving
    current behavior (and the loop-repeat fix's `cache_control` drop). Video
    via the Anthropic surface is undocumented for MiniMax; do not emit
-   unverified blocks. Add a `logger.debug` line so a dropped non-image data
-   part is traceable.
+   unverified blocks.
+
+   > **Deferred:** the planned `logger.debug` for dropped non-image data
+   > parts was NOT added. `convert.ts` is deliberately kept free of runtime
+   > `vscode` imports so it stays unit-testable in plain Node (tests run via
+   > `tsx` with no `vscode` module — the same reason
+   > `runtime/thinkingPartGuard.ts` uses a lazy `require`). Importing
+   > `../logger` would pull in a top-level `import * as vscode from 'vscode'`
+   > and break the test suite. Revisit via a lazy-require helper if
+   > traceability is ever needed.
 
 5. **Unit tests** in [test/convert.test.ts](../../test/convert.test.ts):
 
@@ -239,3 +247,61 @@ Scope: [src/client/convert.ts](../../src/client/convert.ts) (primary) +
    `%APPDATA%/Code/logs/<ts>/window1/exthost/minimax-copilot-paygo.minimax-copilot/MiniMax PAYG Copilot.log`
    and confirm the `messages` array sent to `/v1/messages` now contains an
    `image` content block with a base64 `source`.
+
+---
+
+## 6. Implementation Status — COMPLETED ✅
+
+Implemented on 2026-07-03. Scope: `src/client/convert.ts` (one new branch +
+two helpers) and `test/convert.test.ts` (one new helper + five new tests).
+
+### Step-by-step verification
+
+1. **`toBase64` helper added** — normalizes `Uint8Array | ArrayBufferLike` to
+   `Uint8Array`, then `Buffer.from(u8).toString('base64')`. No new dependency
+   (`Buffer` is a Node global; `@types/node` is already a devDependency).
+
+2. **`isImageDataPart` duck-type check added** — accepts `mimeType` starting
+   with `image/` and `data` as either `Uint8Array` or any `ArrayBuffer`-like
+   (`byteLength` present). The synthetic `cache_control` marker does NOT
+   match (its mime is `cache_control`), so it still falls through and is
+   dropped.
+
+3. **Image branch added in `buildAnthropicContentBlocks`** — placed before
+   the `else` text fallback; emits:
+   ```ts
+   { type: 'image', source: { type: 'base64', media_type: p.mimeType, data: toBase64(p.data) } }
+   ```
+   The `buildAnthropicContentBlocks` JSDoc was updated to note user messages
+   are now `text` and/or `image` blocks.
+
+4. **`logger.debug` deferred** — see §3.4 note. Non-image data parts still
+   drop silently via the `else` branch (unchanged behavior).
+
+5. **Unit tests added** in `test/convert.test.ts` (new `vision / image input`
+   describe block, 5 tests):
+   - PNG `LanguageModelDataPart` → Anthropic `image` block (full
+     `deepStrictEqual` on `source.type` / `media_type` / `data`).
+   - Mixed text + image in one user message → `[text, image]` in order.
+   - JPEG mime passthrough.
+   - `cache_control` data part in a user message is dropped, not misread as
+     an image (regression guard for the loop-repeat fix).
+   - Image part in an assistant message does not crash (defensive).
+
+   Note: assertions use `deepStrictEqual` on the whole block rather than
+   `block.source?.field`. The `strictTypeChecked` ESLint config
+   (`@typescript-eslint/no-unnecessary-condition`) flags `?.` on
+   `block.source` here; `deepStrictEqual` sidesteps that and is a stronger
+   assertion anyway.
+
+6. **Quality gates** — `npm run ltfb` (lint + typecheck + format + compile)
+   green; `npm test` reports **20/20 passing** (15 pre-existing + 5 new).
+
+### Runtime rollout caveat
+
+Source edits do not affect the running extension until `dist/extension.js`
+is rebuilt and copied/reinstalled into
+`~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-0.1.0/`, then VS
+Code is reloaded (per repo memory). `npm run compile` (esbuild) rebuilds
+`dist/extension.js`; the copy/reinstall + full VS Code quit is the remaining
+manual step before live verification (§5).

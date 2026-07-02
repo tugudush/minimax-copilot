@@ -100,7 +100,9 @@ export function convertMessages(
  *
  * Assistant messages may contain `LanguageModelThinkingPart` blocks
  * that need to be replayed as Anthropic `thinking` content blocks
- * (with their `signature`). User messages are always `text` blocks.
+ * (with their `signature`). User messages are `text` and/or `image`
+ * blocks — attached images arrive as `LanguageModelDataPart` and are
+ * emitted as Anthropic `image` content blocks (see docs/bugs/vision.md).
  */
 function buildAnthropicContentBlocks(
   content: readonly unknown[],
@@ -140,8 +142,27 @@ function buildAnthropicContentBlocks(
           signature: signature ?? '',
         })
       }
+    } else if (isImageDataPart(part)) {
+      // User-attached image (LanguageModelDataPart with an image/* mime).
+      // VS Code delivers attached images as { data: Uint8Array, mimeType };
+      // emit an Anthropic `image` block with a base64 source so M3 can see
+      // it. Without this branch the image would fall into the text fallback
+      // where `getPartValue` returns '' (data parts have no `.value`) and
+      // be silently dropped. See docs/bugs/vision.md.
+      const p = part as { data: Uint8Array | ArrayBufferLike; mimeType: string }
+      blocks.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: p.mimeType,
+          data: toBase64(p.data),
+        },
+      })
     } else {
-      // Text part (user or assistant).
+      // Text part (user or assistant), or a non-image data part we can't
+      // represent in the Anthropic Messages API (e.g. video/*, audio/*, or
+      // the synthetic `cache_control` marker). Non-image data parts have no
+      // `.value`, so `getPartValue` returns '' and they are dropped here.
       const text = getPartValue(part)
       if (text) {
         blocks.push({ type: 'text', text })
@@ -222,6 +243,37 @@ function isToolResultPart(part: unknown): boolean {
     p.content !== undefined &&
     p.content !== null
   )
+}
+
+/** Duck-type check: is this part a LanguageModelDataPart carrying an image?
+ *
+ * VS Code delivers attached images as `LanguageModelDataPart` blocks with
+ * shape `{ data: Uint8Array, mimeType: 'image/png' | 'image/jpeg' | ... }`.
+ * Without an explicit image branch these would fall into the text fallback,
+ * where `getPartValue` returns '' (data parts have no `.value`) and the
+ * image is silently dropped before reaching MiniMax. See docs/bugs/vision.md.
+ *
+ * Accepts both `Uint8Array` and any `ArrayBuffer`-like (`byteLength` present)
+ * so we tolerate the various typed-array shapes VS Code may hand us.
+ */
+function isImageDataPart(part: unknown): boolean {
+  const p = part as { data?: unknown; mimeType?: string }
+  return (
+    typeof p.mimeType === 'string' &&
+    p.mimeType.startsWith('image/') &&
+    (p.data instanceof Uint8Array ||
+      (p.data != null && typeof p.data === 'object' && 'byteLength' in p.data))
+  )
+}
+
+/** Base64-encode image bytes for the Anthropic `image` block source.
+ *
+ * Uses Node's `Buffer` (available in the extension host) so we don't pull in
+ * a base64 dependency. Normalizes `ArrayBuffer`-like input to `Uint8Array`
+ * first, mirroring `extractPartText`'s data-part handling. */
+function toBase64(data: Uint8Array | ArrayBufferLike): string {
+  const u8 = data instanceof Uint8Array ? data : new Uint8Array(data)
+  return Buffer.from(u8).toString('base64')
 }
 
 /** Extract text from a tool result's content array.

@@ -35,6 +35,17 @@ function thinkingPart(
   return { value, id }
 }
 
+/**
+ * Build a mock VS Code image data part (LanguageModelDataPart).
+ * Attached images arrive as { data: Uint8Array, mimeType }.
+ */
+function imagePart(
+  mimeType: string,
+  bytes: Uint8Array
+): { data: Uint8Array; mimeType: string } {
+  return { data: bytes, mimeType }
+}
+
 interface MockMessage {
   role: number
   name: string | undefined
@@ -60,6 +71,7 @@ interface ContentBlock {
   text?: string
   content?: string
   tool_use_id?: string
+  source?: { type: string; media_type: string; data: string }
 }
 
 // ---- Tests ----
@@ -250,6 +262,111 @@ describe('convertMessages', () => {
       '{"value":{"kind":"text","text":"On branch main"}}'
     )
     assert.notStrictEqual(block.content, '(empty)')
+  })
+})
+
+describe('vision / image input', () => {
+  it('converts a user-attached PNG LanguageModelDataPart into an Anthropic image block', () => {
+    // VS Code delivers attached images as { data: Uint8Array, mimeType }.
+    // Previously these were silently dropped (no .value → empty text →
+    // skipped), so the model never saw the image. See docs/bugs/vision.md.
+    const raw = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const { messages } = convertMessages([
+      toolMsg(ROLE_USER, imagePart('image/png', raw)),
+    ])
+
+    assert.strictEqual(messages.length, 1)
+    assert.strictEqual(messages[0]!.role, 'user')
+    const block = (messages[0]!.content as ContentBlock[])[0]!
+    assert.deepStrictEqual(block, {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: 'image/png',
+        data: Buffer.from(raw).toString('base64'),
+      },
+    })
+  })
+
+  it('preserves order of mixed text + image parts in a user message', () => {
+    const raw = new Uint8Array([1, 2, 3, 4])
+    const { messages } = convertMessages([
+      toolMsg(
+        ROLE_USER,
+        textPart('What is this?'),
+        imagePart('image/png', raw)
+      ),
+    ])
+
+    assert.strictEqual(messages.length, 1)
+    const content = messages[0]!.content as ContentBlock[]
+    assert.strictEqual(content.length, 2)
+    assert.deepStrictEqual(content[0]!, { type: 'text', text: 'What is this?' })
+    assert.deepStrictEqual(content[1]!, {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: 'image/png',
+        data: Buffer.from(raw).toString('base64'),
+      },
+    })
+  })
+
+  it('supports other image mime types (jpeg)', () => {
+    const raw = new Uint8Array([0xff, 0xd8, 0xff, 0xe0])
+    const { messages } = convertMessages([
+      toolMsg(ROLE_USER, imagePart('image/jpeg', raw)),
+    ])
+
+    const block = (messages[0]!.content as ContentBlock[])[0]!
+    assert.deepStrictEqual(block, {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: 'image/jpeg',
+        data: Buffer.from(raw).toString('base64'),
+      },
+    })
+  })
+
+  it('does not emit an image block for non-image data parts (e.g. cache_control)', () => {
+    // Regression guard: the synthetic `cache_control` marker and other
+    // non-image data parts must NOT be misread as images. They fall through
+    // to the text branch, which drops them (no .value). This also protects
+    // the loop-repeat fix's cache_control drop on the user-message path.
+    const { messages } = convertMessages([
+      toolMsg(ROLE_USER, textPart('hi'), {
+        data: new Uint8Array([0]),
+        mimeType: 'cache_control',
+      }),
+    ])
+
+    assert.strictEqual(messages.length, 1)
+    const content = messages[0]!.content as ContentBlock[]
+    // Only the text block survives; cache_control is dropped.
+    assert.strictEqual(content.length, 1)
+    assert.strictEqual(content[0]!.type, 'text')
+    assert.strictEqual(content[0]!.text, 'hi')
+  })
+
+  it('handles an image part in an assistant message without crashing (defensive)', () => {
+    // Images normally only appear in user turns, but be defensive: an image
+    // part on an assistant turn should still produce an image block rather
+    // than throw.
+    const raw = new Uint8Array([9, 9, 9])
+    const { messages } = convertMessages([
+      toolMsg(
+        ROLE_ASSISTANT,
+        textPart('Here is the chart:'),
+        imagePart('image/png', raw)
+      ),
+    ])
+
+    assert.strictEqual(messages.length, 1)
+    const content = messages[0]!.content as ContentBlock[]
+    assert.strictEqual(content.length, 2)
+    assert.strictEqual(content[0]!.type, 'text')
+    assert.strictEqual(content[1]!.type, 'image')
   })
 })
 
