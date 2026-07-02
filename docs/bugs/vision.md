@@ -269,9 +269,11 @@ two helpers) and `test/convert.test.ts` (one new helper + five new tests).
 
 3. **Image branch added in `buildAnthropicContentBlocks`** — placed before
    the `else` text fallback; emits:
+
    ```ts
    { type: 'image', source: { type: 'base64', media_type: p.mimeType, data: toBase64(p.data) } }
    ```
+
    The `buildAnthropicContentBlocks` JSDoc was updated to note user messages
    are now `text` and/or `image` blocks.
 
