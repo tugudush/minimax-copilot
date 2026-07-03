@@ -384,11 +384,14 @@ Implemented on 2026-07-03 on branch `feature/path-referenced-image`.
 
 ### Runtime rollout
 
-Per [docs/bugs/vision.md](../bugs/vision.md) §3.7 — `dist/extension.js`
-is rebuilt but the running extension won't see changes until copied
-into `~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-0.1.0/`
-and VS Code is **fully quit** (reinstalling while VS Code holds the
-folder silently no-ops).
+Per the README's "Updating an existing install" section — **`npm run
+package` + Extensions panel → "Install from VSIX" → Reload Window**
+is the recommended path. The atomic VSIX install + Reload Window
+sequence avoids the "VS Code holds the old JS open" snag that a
+manual `cp dist/extension.js` into the extensions folder can hit (the
+old vision rollout doc warned about needing a "full VS Code quit" —
+that was for the manual-copy path; VSIX install is cleaner and Reload
+Window is sufficient).
 
 ### Verification TODO (after rollout)
 

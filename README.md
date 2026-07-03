@@ -130,15 +130,15 @@ Click the model picker in Copilot Chat at any time to switch models. Each reques
 
 Configure via **File → Preferences → Settings** (`Ctrl+,`) and search for `minimax`, or edit `settings.json` directly:
 
-| Setting                   | Type      | Default     | Description                                                                               |
-| ------------------------- | --------- | ----------- | ----------------------------------------------------------------------------------------- |
-| `minimax.apiBaseUrl`      | `string`  | `""` (auto) | Override the Anthropic-compatible base URL. Auto-picked from your chosen region.          |
-| `minimax.thinking`        | `boolean` | `true`      | Enable adaptive reasoning for M3 models. Has no effect on M2.7.                           |
-| `minimax.visibleModels`   | `array`   | `[]` (all)  | Model IDs to show in the picker. Example: `["minimax-m3", "minimax-m2.7"]`                |
-| `minimax.maxOutputTokens` | `number`  | `0`         | Output token cap per request. `0` = model decides.                                        |
-| `minimax.debugMode`       | `string`  | `"minimal"` | Log verbosity: `"minimal"`, `"metadata"`, or `"verbose"` (writes request bodies to disk). |
-| `minimax.pathImageInline` | `boolean` | `true`      | When `true`, type an image path in chat (e.g. `docs/foo.png`) and the extension reads it and sends it to the model as a base64 image block. Set to `false` to disable file reads during inference. |
-| `minimax.pathImageMaxBytes` | `integer` | `5242880`  | Per-image byte cap for path-referenced images. `0` = no cap (default 5 MB). |
+| Setting                     | Type      | Default     | Description                                                                                                                                                                                        |
+| --------------------------- | --------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `minimax.apiBaseUrl`        | `string`  | `""` (auto) | Override the Anthropic-compatible base URL. Auto-picked from your chosen region.                                                                                                                   |
+| `minimax.thinking`          | `boolean` | `true`      | Enable adaptive reasoning for M3 models. Has no effect on M2.7.                                                                                                                                    |
+| `minimax.visibleModels`     | `array`   | `[]` (all)  | Model IDs to show in the picker. Example: `["minimax-m3", "minimax-m2.7"]`                                                                                                                         |
+| `minimax.maxOutputTokens`   | `number`  | `0`         | Output token cap per request. `0` = model decides.                                                                                                                                                 |
+| `minimax.debugMode`         | `string`  | `"minimal"` | Log verbosity: `"minimal"`, `"metadata"`, or `"verbose"` (writes request bodies to disk).                                                                                                          |
+| `minimax.pathImageInline`   | `boolean` | `true`      | When `true`, type an image path in chat (e.g. `docs/foo.png`) and the extension reads it and sends it to the model as a base64 image block. Set to `false` to disable file reads during inference. |
+| `minimax.pathImageMaxBytes` | `integer` | `5242880`   | Per-image byte cap for path-referenced images. `0` = no cap (default 5 MB).                                                                                                                        |
 
 ---
 
