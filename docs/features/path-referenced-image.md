@@ -202,9 +202,16 @@ export function pathImageMaxBytes(): number {
 
 Use the existing `logger` ([src/logger.ts](../../src/logger.ts)):
 
-- `info` once per request with the count: `Inlined N image(s) from user message paths: [docs/a.png, docs/b.png]`
-- `warn` per failure with the path: `Skipped path-referenced image (not found): docs/missing.png`
-- `warn` per oversize: `Skipped path-referenced image (>5.0 MB): docs/big.png`
+- `info` once per request where any candidate resolved, with the count:
+  `Inlined N image(s) from user message paths` (paths themselves are
+  not currently listed in the log line — the resolved candidates can
+  always be cross-referenced with the Anthropic `messages[*].content`
+  array in verbose mode).
+- `warn` per unreadable candidate:
+  `Skipped path-referenced image (not readable): <candidate>`.
+- `warn` per oversize candidate:
+  `Skipped path-referenced image (>X.X MB): <candidate>` where the
+  message mentions the configured cap (e.g. `>5.0 MB`).
 
 ### 2g. Cancellation
 
@@ -217,20 +224,25 @@ VS Code can cancel mid-batch.
 
 ## 3. Implementation steps
 
-1. **Helpers** in `src/runtime/pathImageResolver.ts`:
+1. **Helpers** in `src/runtime/pathImageExtractor.ts`:
    - `extractCandidatePaths(text)` — regex-based extractor that returns
      matches with start/end indices (not just strings — we need them
      for the splice).
    - `isSupportedImagePath(p)` — extension check (`.png .jpg .jpeg .gif
 .webp`, case-insensitive).
-   - `escapeSingleQuoted(s)` — for safe error logging.
+   - _Note:_ an early draft listed `escapeSingleQuoted(s)` for safe
+     logging; the implementation went with template-literal
+     interpolation (`${candidate}`) so the helper was never written.
 2. **Async core** in `src/runtime/pathImageResolver.ts`:
    - `inlinePathImages(messages, options, token)` — public entry point.
    - Lazy `require('vscode')` via the same pattern as
      `thinkingPartGuard.ts` — tests do NOT need `vscode`, they pass
      a fake reader.
-   - Internal: `readImageForCandidate(p, ctx)` returns
-     `{ uri, bytes, mime } | null`.
+   - Internal `FileReader.resolve(candidate, ctx)` is the per-call
+     filesystem hook. The default reader (`createDefaultReader`)
+     delegates to `resolveViaVsCode` (which uses `vscode.workspace.fs`)
+     with a `resolveAbsoluteFallback` for Node-only environments
+     (tests). Returns `{ data, mimeType } | null`.
 3. **Wire-up** in [src/provider/index.ts](../../src/provider/index.ts):
    - Replace direct `convertMessages(messages, this.thinkingSignatures)`
      with:
@@ -265,8 +277,11 @@ VS Code can cancel mid-batch.
      injected via dependency** (we'll add an overload or a `Reader`
      type) so no real `vscode` needed.
 7. **Quality gates**: `npm run ltfb && npm test` must remain green.
-8. **Runtime rollout**: rebuild + reinstall + VS Code quit per
-   [docs/bugs/vision.md](../bugs/vision.md) §3.7.
+8. **Runtime rollout**: per the README's "Updating an existing install"
+   section — `npm run package` → Extensions panel → "Install from
+   VSIX" → Reload Window. (The manual-copy path with full VS Code
+   quit described in the older vision.md §3.7 still works but is
+   no longer the recommended one.)
 
 ---
 
@@ -292,9 +307,9 @@ VS Code can cancel mid-batch.
 
 ## 5. Verification
 
-1. Rebuild + reinstall (`npm run ltfb` then copy `dist/` to the
-   extension folder and fully quit / restart VS Code — same flow as
-   vision.md §3.7).
+1. **`npm run package`** + Extensions panel → "Install from VSIX" →
+   Reload Window. (The older manual-copy / full-quit flow is no
+   longer recommended; see `docs/bugs/vision.md` §3.7 history.)
 2. Test cases (live, after rollout):
    - In Copilot Chat with MiniMax M3, type:
      `Look at docs/foo.png — describe what you see.`

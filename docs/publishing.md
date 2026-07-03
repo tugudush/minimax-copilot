@@ -61,12 +61,20 @@ The `package` script runs `vsce package` which:
 
 ### What's in the `.vsix`?
 
+`vsce package` honours `.vscodeignore`. The current ignore list
+excludes `node_modules/`, `src/`, `test/`, `docs/`, config files
+(esbuild / eslint / tsconfig / prettier), `.git/`, `.env`,
+`*.vsix`, **and `CHANGELOG.md`** (so the changelog is **not** part
+of the published package — track its history in git / GitHub releases
+instead). What lands in the archive:
+
 ```
 minimax-copilot-0.1.0.vsix  (zip archive)
 ├── extension/
 │   ├── package.json
+│   ├── LICENSE              ← packaged by default (vsce includes MIT-license files automatically)
 │   ├── dist/
-│   │   └── extension.js        ← bundled output from esbuild
+│   │   └── extension.js    ← bundled output from esbuild
 │   └── walkthroughs/
 │       └── setup/
 │           ├── welcome.md

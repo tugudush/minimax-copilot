@@ -211,11 +211,13 @@ Scope: [src/client/convert.ts](../../src/client/convert.ts) (primary) +
 6. **Quality gates**: `npm run ltfb` (lint + typecheck + format + compile)
    and `npm test` must be green.
 
-7. **Runtime rollout**: per repo memory, source edits do not take effect
-   until `dist/extension.js` is rebuilt and reinstalled into
-   `~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-0.1.0/` and
-   VS Code is reloaded (fully quit first — reinstalling while VS Code holds
-   the extension folder silently no-ops).
+7. **Runtime rollout**: per the README's "Updating an existing install"
+   section, the clean path is **`npm run package` → Extensions panel →
+   "Install from VSIX" → Reload Window**. The atomic VSIX install +
+   Reload Window sequence avoids the "VS Code holds the old JS file
+   open" snag that a manual `cp dist/extension.js` into the extensions
+   folder can hit (that older path did require fully quitting VS Code
+   first; VSIX install makes that unnecessary).
 
 ---
 

@@ -86,7 +86,7 @@ Thinking is **on by default** for M3 models. To turn it off:
 MiniMax: Toggle Thinking
 ```
 
-> **Note:** The collapsible "Thinking" block in Copilot Chat requires a VS Code build with the `languageModelThinkingPart` proposal active (Insiders / approved). On stable VS Code, chat works normally — the reasoning stream is included inline in the response.
+> **Note:** The collapsible "Thinking" block in Copilot Chat requires a VS Code build with the `languageModelThinkingPart` proposal active (Insiders / approved). On stable VS Code, chat works normally — reasoning is dropped silently, so the final response is the model's answer without a separate thinking section.
 
 ---
 
@@ -172,7 +172,7 @@ Configure via **File → Preferences → Settings** (`Ctrl+,`) and search for `m
 ### Thinking block not rendering
 
 - The collapsible "Thinking" block requires a VS Code build where the `languageModelThinkingPart` proposal is active. This is available in **VS Code Insiders** or approved stable builds.
-- On standard stable VS Code, reasoning content is still delivered — it appears inline in the response text.
+- On standard stable VS Code, the reasoning deltas are dropped silently (no inline reasoning text and no separate block are emitted). The model is still asked to reason — only the display is unavailable.
 - Ensure `minimax.thinking` is `true` and you are using an M3 model (M2.7 does not support thinking).
 
 ### High latency or slow responses

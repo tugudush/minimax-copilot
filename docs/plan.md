@@ -143,13 +143,15 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 ## 6. Settings (minimal)
 
-| Setting                   | Default   | Purpose                                                  |
-| ------------------------- | --------- | -------------------------------------------------------- |
-| `minimax.apiBaseUrl`      | auto      | Anthropic base URL; auto‑picked from locale, switchable. |
-| `minimax.thinking`        | `true`    | ★ M3 adaptive thinking on/off.                           |
-| `minimax.visibleModels`   | all       | Restrict picker entries.                                 |
-| `minimax.maxOutputTokens` | `0`       | Output cap; `0` = model decides.                         |
-| `minimax.debugMode`       | `minimal` | `minimal` / `metadata` / `verbose`.                      |
+| Setting                     | Default   | Purpose                                                                                                                                       |
+| --------------------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `minimax.apiBaseUrl`        | auto      | Anthropic base URL; auto‑picked from locale, switchable.                                                                                      |
+| `minimax.thinking`          | `true`    | ★ M3 adaptive thinking on/off.                                                                                                                |
+| `minimax.visibleModels`     | all       | Restrict picker entries.                                                                                                                      |
+| `minimax.maxOutputTokens`   | `0`       | Output cap; `0` = model decides.                                                                                                              |
+| `minimax.debugMode`         | `minimal` | `minimal` / `metadata` / `verbose`.                                                                                                           |
+| `minimax.pathImageInline`   | `true`    | Read image paths in user messages and inline as base64 blocks (see [`features/path-referenced-image.md`](features/path-referenced-image.md)). |
+| `minimax.pathImageMaxBytes` | `5242880` | Per-image size cap for path-referenced images; `0` = no cap.                                                                                  |
 
 (★ = the one user‑facing reasoning toggle. No budget / spend / balance settings.)
 
@@ -182,9 +184,17 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 ## 8. Build, test, package
 
 - `npm run compile` (esbuild), `npm run watch`, `npm run lint`, `npm test` (`node --test`), `npm run package` (`vsce package` → `.vsix`).
-- Unit tests today: `convert.ts` only (thinking replay, signatures, tool‑call / tool‑result conversion incl. `TextPart` / `DataPart` / `PromptTsxPart` / `cache_control` shapes, role mapping). 15 cases in `test/convert.test.ts`.
+- Unit tests as of `0.1.0` (+ post-release features):
+  - `test/convert.test.ts` — convert.ts: thinking replay,
+    signatures, tool‑call / tool‑result conversion incl. `TextPart` /
+    `DataPart` / `PromptTsxPart` / `cache_control` shapes, role
+    mapping, **and** the `vision` `image` block emission. 20 cases.
+  - `test/pathImageResolver.test.ts` — extractCandidatePaths,
+    isSupportedImagePath, and inlinePathImages end-to-end with the
+    `FileReader` injection seam. 24 cases.
+  - **Total: 44 cases**, all passing.
 - **Out of scope today (deferred):** dedicated unit tests for `client.ts` (event → part mapping), `endpoint.ts` (locale → host), and `auth.ts` (no `coding_plan` call). The plan originally listed these — they remain a backlog item, not a current claim.
-- Install: `code --install-extension minimax-copilot-paygo-*.vsix`.
+- Install: `code --install-extension minimax-copilot-paygo-*.vsix` or via the Extensions panel (Extensions → ⋯ → Install from VSIX).
 
 ---
 
@@ -206,7 +216,33 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 - ✅ Thinking-block `signature` values are captured from `content_block_stop` and replayed in subsequent turns (round-trip unit tested in `test/convert.test.ts`).
 - ✅ When the proposal is unavailable, chat still works (thinking dropped gracefully via `runtime/thinkingPartGuard.ts`).
 - ✅ The key lives only in SecretStorage (absent from `globalState` / workspace settings).
-- ✅ `npm test` green (15/15); `vsce package` produces an installing `.vsix`.
+- ✅ `npm test` green (44/44 across `convert.test.ts` and
+  `pathImageResolver.test.ts` — see §8); `vsce package` produces an
+  installing `.vsix`.
+
+---
+
+## 10a. Post‑Phase‑3 additions (not in the original phased plan)
+
+Two features shipped after Phase 3 closed; both build on the §3 "minimal"
+constraints without expanding them.
+
+- **`vision` (image attachment, `2026-07-03`).** `convert.ts` now emits
+  an Anthropic `image` content block for `LanguageModelDataPart` parts
+  with an `image/*` mime. M3 advertised as multimodal (`registry.ts`),
+  capability surfaced as `imageInput: true` in the picker, no setter.
+  See [`bugs/vision.md`](bugs/vision.md) for the postmortem.
+  Net: drag-drop, paste, and the paperclip button now work.
+- **`path-referenced-image` (`2026-07-03`).** The user types an image
+  path; the extension reads it and inlines it as base64. New module
+  `src/runtime/pathImageResolver.ts` with a `FileReader` injection
+  seam, two new settings (`minimax.pathImageInline`,
+  `minimax.pathImageMaxBytes`), 24 new tests. See
+  [`features/path-referenced-image.md`](features/path-referenced-image.md).
+
+Together these brought the test suite from 15/15 to **44/44 passing**.
+The §6 settings table includes the two new settings; the §8 test summary
+covers the new test file.
 
 ---
 

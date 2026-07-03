@@ -38,6 +38,27 @@ Initial release. PAYG-first VS Code extension that surfaces **MiniMax
 M3 / M3 Priority / M2.7 / M2.7 Highspeed** inside **GitHub Copilot
 Chat**, with adaptive thinking rendered as a collapsible block.
 
+### Fixed — `vision` (image attachment silently dropped)
+
+Direct image attachment (drag-drop, paste, paperclip) was silently
+stripped from the outgoing Anthropic payload because
+`buildAnthropicContentBlocks` in `src/client/convert.ts` had no branch
+for `LanguageModelDataPart` carrying an `image/*` mime. Such parts
+fell into the text fallback, which only read `.value` (a data part
+has none), so no block was emitted at all and the model received the
+user's text but no image. See
+[`docs/bugs/vision.md`](docs/bugs/vision.md) for the postmortem.
+
+- New `isImageDataPart` duck-type check + `toBase64` helper added.
+- New `image` branch in `buildAnthropicContentBlocks` emits an
+  Anthropic `image` content block with a base64 `source`, matching
+  the four supported mimes (image/png, image/jpeg, image/gif,
+  image/webp).
+- `cache_control` and other non-image `DataPart`s still drop through
+  the text branch and are skipped by the `if (text)` guard —
+  preserving the loop-repeat fix's silent-drop behavior for the
+  synthetic cache marker.
+
 ### Fixed — `loop-repeat` (Copilot trapped in `git status` etc.)
 
 Four stacked bugs in `src/client/convert.ts` and the supporting streaming
@@ -133,14 +154,19 @@ Global API` / `MiniMax: Switch to Chinese API` commands override
 
 ### Tests
 
-- 15/15 passing in `test/convert.test.ts`:
+- 20/20 passing in `test/convert.test.ts` for the `0.1.0` scope:
   - 10 covering system extraction, text/thinking/tool-call/tool-result
     conversion, and thinking-block round-trip with signatures.
-  - 5 new covering the loop-repeat fixes: wrapped
+  - 5 covering the loop-repeat fixes: wrapped
     `LanguageModelToolResult` tool results, `LanguageModelDataPart`
     tool results, the synthetic `cache_control` `DataPart` drop,
     `LanguageModelPromptTsxPart` tool results, and role-mapping
     regression coverage via explicit `ROLE_*` constants in fixtures.
+  - 5 covering the vision fix: `LanguageModelDataPart` → Anthropic
+    `image` block, mixed text + image interleaving, jpeg mime
+    passthrough, `cache_control` user-message drop (regression guard
+    for the loop-repeat fix), and defensive assistant-turn image
+    handling.
 
 ### Known limitations
 

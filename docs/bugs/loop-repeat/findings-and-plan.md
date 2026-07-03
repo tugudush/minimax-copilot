@@ -496,14 +496,16 @@ inside those bodies was simply unrecoverable until roles were corrected.
 
 ### Outstanding follow-ups (non-blocking, tracked separately)
 
-- Remove the diagnostic log lines now that the bug is confirmed fixed:
-  - `[toolresult-diag]` in `src/provider/index.ts`.
-  - `[stream-diag] tool_choice forced to "any"` and
-    `[stream-diag] stop_reason=` in `src/client/client.ts`.
-    These were added specifically to confirm each hypothesis and can come out
-    in a small follow-up commit once the team is confident no regression
-    sneaks back in.
-- Consider extracting the role constants (`ROLE_SYSTEM = 0`,
+- ✅ **Diagnostic log lines removed** (audited 2026-07-03). Both
+  `[toolresult-diag]` (formerly in `src/provider/index.ts`) and the
+  `[stream-diag] tool_choice forced…` / `[stream-diag] stop_reason=…`
+  lines (formerly in `src/client/client.ts`) have been cleaned up.
+  `grep` on `src/` returns no matches. Removing them no longer risks
+  hiding a regression: the underlying role-mapping fix is locked behind
+  the `ROLE_USER = 1` constant in `src/client/convert.ts`, and the
+  role-mismatch path now hits the strict role check in
+  `buildAnthropicContentBlocks` rather than silently producing garbage.
+- **Consider extracting the role constants** (`ROLE_SYSTEM = 0`,
   `ROLE_USER = 1`, `ROLE_ASSISTANT = 2`) and the `convertRole` mapping into
   a small standalone module so they cannot drift again. The
   `node_modules/@types/vscode/index.d.ts` `LanguageModelChatMessageRole`
