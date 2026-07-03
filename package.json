@@ -141,6 +141,17 @@
           ],
           "default": "minimal",
           "description": "Debug verbosity. 'verbose' writes full request bodies to disk."
+        },
+        "minimax.pathImageInline": {
+          "type": "boolean",
+          "default": true,
+          "description": "Resolve image file paths in user messages into base64 image blocks. Disable if you don't want file reads during inference."
+        },
+        "minimax.pathImageMaxBytes": {
+          "type": "integer",
+          "default": 5242880,
+          "minimum": 0,
+          "description": "Per-image size cap for path-referenced images (bytes). 0 = no cap. Anthropic recommends ~5 MB."
         }
       }
     }

@@ -36,3 +36,13 @@ export function maxOutputTokens(): number {
 export function debugMode(): string {
   return cfg().get<string>('debugMode', 'minimal')
 }
+
+/** Whether to resolve image paths in user messages into base64 blocks. Default true. */
+export function pathImageInline(): boolean {
+  return cfg().get<boolean>('pathImageInline', true)
+}
+
+/** Per-image byte cap for path-referenced inlining. 0 = no cap. Default 5 MB. */
+export function pathImageMaxBytes(): number {
+  return cfg().get<number>('pathImageMaxBytes', 5_242_880)
+}

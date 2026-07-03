@@ -18,8 +18,9 @@ import * as vscode from 'vscode'
 import { getApiKey, onDidChangeApiKey } from '../auth'
 import { buildChatInformation } from './models'
 import { findModel } from '../models/registry'
-import { maxOutputTokens } from '../config'
+import { maxOutputTokens, pathImageInline, pathImageMaxBytes } from '../config'
 import { convertMessages, convertTools } from '../client/convert'
+import { inlinePathImages } from '../runtime/pathImageResolver'
 import { streamChat } from '../client/client'
 import * as logger from '../logger'
 import { t } from '../i18n'
@@ -110,10 +111,25 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
     // Advance the turn counter for stable thinking block ids.
     const turn = this.turnIndex++
 
+    // Inline any image paths in user-message text (`docs/foo.png`, `C:\...`,
+    // `#file:...`) as `LanguageModelDataPart` blocks. After this, the
+    // message contents are a mix of text and image data parts — exactly
+    // what `convert.ts`'s image branch (vision.md §6) turns into
+    // Anthropic `image` content blocks.
+    const prepared = await inlinePathImages(messages, {
+      enabled: pathImageInline(),
+      maxBytes: pathImageMaxBytes(),
+    })
+    if (prepared !== messages) {
+      logger.info(
+        `Chat request: prepared=${prepared.length} msgs (path-image inline active)`
+      )
+    }
+
     // Convert messages, replaying prior thinking blocks with their
     // signatures so the model sees its own past reasoning.
     const { system, messages: anthropicMessages } = convertMessages(
-      messages,
+      prepared,
       this.thinkingSignatures
     )
 

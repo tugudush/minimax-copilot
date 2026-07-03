@@ -8,6 +8,7 @@ A minimal VS Code extension that surfaces **MiniMax M3 / M2.7** inside **GitHub 
 
 - **M3 adaptive thinking** — reasoning streamed as a collapsible "Thinking" block in Copilot Chat (requires a VS Code build with the `languageModelThinkingPart` proposal active — Insiders / approved).
 - **PAYG‑first** — works with a MiniMax pay‑as‑you‑go API key. No Token‑Plan subscription required.
+- **Vision input** — drag, paste, or click the paperclip to attach an image. Or **type a path** like `docs/foo.png`, `C:\path\foo.png`, or `#file:foo.png` and the extension reads it for you (set `minimax.pathImageInline: false` to disable file reads).
 - **China / Global endpoint switch** — pick the endpoint that matches your MiniMax account region.
 - **Four model tiers** — M3 standard, M3 priority, M2.7 standard, M2.7 highspeed.
 - **Secure key storage** — API key stored in VS Code SecretStorage, never written to disk or settings files.
@@ -136,6 +137,8 @@ Configure via **File → Preferences → Settings** (`Ctrl+,`) and search for `m
 | `minimax.visibleModels`   | `array`   | `[]` (all)  | Model IDs to show in the picker. Example: `["minimax-m3", "minimax-m2.7"]`                |
 | `minimax.maxOutputTokens` | `number`  | `0`         | Output token cap per request. `0` = model decides.                                        |
 | `minimax.debugMode`       | `string`  | `"minimal"` | Log verbosity: `"minimal"`, `"metadata"`, or `"verbose"` (writes request bodies to disk). |
+| `minimax.pathImageInline` | `boolean` | `true`      | When `true`, type an image path in chat (e.g. `docs/foo.png`) and the extension reads it and sends it to the model as a base64 image block. Set to `false` to disable file reads during inference. |
+| `minimax.pathImageMaxBytes` | `integer` | `5242880`  | Per-image byte cap for path-referenced images. `0` = no cap (default 5 MB). |
 
 ---
 
