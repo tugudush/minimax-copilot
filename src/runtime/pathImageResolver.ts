@@ -331,6 +331,52 @@ async function resolveViaVsCode(
     }
   } else if (isAbsolutePath(candidate)) {
     candidates.push(vscode.Uri.file(candidate))
+  } else if (candidate.startsWith('#file:')) {
+    // VS Code's chat `#file:` reference syntax. Two forms:
+    //
+    //   `#file:docs/foo.png`   (bare, workspace-relative)
+    //   `#file:///c:/abs/path` (URI — equivalent to `file:///…`)
+    //
+    // Without stripping the prefix, fs.stat is asked for a path
+    // that literally contains `#file:` and always returns ENOENT —
+    // the prefix is just chat-side markup, not a filesystem
+    // component. (2026-07-03 fix: the prefix slipped through every
+    // branch of this if/else ladder because it isn't a `://` URI,
+    // isn't absolute, and isn't a bare relative path — it ended up
+    // in the workspace-relative branch where `joinPath` produced a
+    // nonsense filesystem path.)
+    const stripped = stripFilePrefix(candidate)
+    if (stripped === null) {
+      getLogger().warn(
+        `Skipped path-referenced image (malformed #file: reference): ${candidate}`
+      )
+      return null
+    }
+    if (/^[a-z][a-z0-9+\-.]*:\/\//i.test(stripped)) {
+      // URI form (`#file:///abs/path` → `file:///abs/path`):
+      // hand to Uri.parse like any other file:// URL. Don't also
+      // try the workspace-relative join — `stripped` is a URI, not
+      // a path; joinPath on it would produce nonsense like
+      // `<folder>/file:///c:/abs/path`.
+      try {
+        candidates.push(vscode.Uri.parse(stripped))
+      } catch {
+        // unparseable — fall through to the bare-form branches
+        // below just in case (they'll silently fail ENOENT).
+      }
+    } else {
+      // Bare form (`#file:<rest>`): resolve like a workspace-
+      // relative path, then fall back to cwd.
+      const folders = vscode.workspace.workspaceFolders
+      if (folders !== undefined && folders.length > 0) {
+        for (const folder of folders) {
+          candidates.push(vscode.Uri.joinPath(folder.uri, stripped))
+        }
+      }
+      if (ctx.cwd && ctx.cwd.length > 0) {
+        candidates.push(vscode.Uri.file(joinPath(ctx.cwd, stripped)))
+      }
+    }
   } else {
     // Workspace-relative: try each workspace folder first…
     const folders = vscode.workspace.workspaceFolders
@@ -412,22 +458,48 @@ async function resolveAbsoluteFallback(
   ctx: FileReaderContext
 ): Promise<{ data: Uint8Array; mimeType: string } | null> {
   const fs = await import('node:fs/promises')
+  // Strip VS Code's chat-side `#file:` markup before doing any
+  // filesystem work — it's not a path component, and asking Node's
+  // `fs` to stat a string containing `#file:` always returns ENOENT.
+  let working = candidate
+  if (working.startsWith('#file:')) {
+    const stripped = stripFilePrefix(working)
+    if (stripped === null) {
+      getLogger().warn(
+        `Skipped path-referenced image (malformed #file: reference): ${candidate}`
+      )
+      return null
+    }
+    working = stripped
+  }
+  // If the URI form survived stripping (`file:///abs/path`), decode
+  // it to a filesystem path. Node's `fs` treats a literal
+  // `file:///c:/foo` as a relative path (`<cwd>/file:/c:/foo`),
+  // which is almost certainly not what the user meant. The
+  // decode mirrors what `vscode.Uri.parse` would do in the
+  // production-vscode branch above.
+  if (/^file:\/\/\//i.test(working)) {
+    working = working
+      .replace(/^file:\/\/\//i, '')
+      .replace(/^\/([A-Za-z]:)\//, '$1\\')
+    working = working.replace(/\//g, '\\')
+  }
   // Build an ordered list of (path, source) pairs. Each entry is a
   // filesystem path to try; the source helps the caller log which
   // resolution base actually worked when reading succeeds.
   const paths: string[] = []
-  if (isAbsolutePath(candidate)) {
-    paths.push(candidate)
+  if (isAbsolutePath(working)) {
+    paths.push(working)
   } else if (ctx.cwd && ctx.cwd.length > 0) {
-    paths.push(joinPath(ctx.cwd, candidate))
+    paths.push(joinPath(ctx.cwd, working))
   } else {
     return null
   }
-  // Also try the literal candidate as a last resort — some
-  // workspaces (and process.cwd()) yield the right answer without
-  // an explicit cwd join when the process happens to be at the
-  // workspace root.
-  if (!paths.includes(candidate)) paths.push(candidate)
+  // Also try the literal (already-stripped) candidate as a last
+  // resort — some workspaces (and process.cwd()) yield the right
+  // answer without an explicit cwd join when the process happens
+  // to be at the workspace root.
+  if (!paths.includes(working)) paths.push(working)
 
   for (const p of paths) {
     try {
@@ -449,6 +521,40 @@ async function resolveAbsoluteFallback(
     }
   }
   return null
+}
+
+/**
+ * Strip the VS Code chat `#file:` reference prefix and return the
+ * path remainder. Accepts both bare (`#file:docs/foo.png`) and
+ * URI-style (`#file:///c:/Users/me/pics/cat.png`) forms. Returns
+ * `null` if the candidate is just `#file:` with nothing after it.
+ *
+ * For the bare form (`#file:<rest>`), `<rest>` is returned as a
+ * workspace-relative path string. For the URI form (`#file://…`),
+ * the leading `#file://` is replaced with `file://` so the caller
+ * can hand the result to `Uri.parse` like any other `file://`
+ * reference — VS Code's chat emits `#file://` to disambiguate
+ * inside chat markup, but the underlying URI is the same.
+ *
+ * Lives at module scope (not nested in `resolveViaVsCode`) so the
+ * Node-only fallback path in `resolveAbsoluteFallback` can reuse it
+ * without re-deriving the regex.
+ */
+function stripFilePrefix(candidate: string): string | null {
+  if (!candidate.startsWith('#file:')) return null
+  const rest = candidate.slice('#file:'.length)
+  if (rest.length === 0) return null
+  // URI form: `#file://...` → `file://...`. Empty between
+  // `file://` and the start of the path is not valid (would be
+  // `#file:///`); if that slips through, treat as malformed.
+  if (rest.startsWith('//')) {
+    return rest.startsWith('///') ? `file://${rest.slice(2)}` : null
+  }
+  // Bare form. Strip a leading `./` to keep the workspace-relative
+  // join logic (and the cwd fallback) happy — `#file:./docs/foo.png`
+  // is a common shape that should resolve identically to
+  // `#file:docs/foo.png`.
+  return rest.replace(/^\.\//, '')
 }
 
 /**

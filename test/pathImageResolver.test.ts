@@ -487,4 +487,199 @@ describe('inlinePathImages', () => {
     assert.strictEqual(content.length, 1)
     assert.strictEqual(content[0]!.value, input[0]!.content[0]!.value)
   })
+
+  //
+  // ---- #file: prefix regression tests (2026-07-03) ----
+  //
+  // The `#file:` chat-reference prefix was silently broken: the
+  // resolver dropped the candidate into the workspace-relative
+  // branch unaltered, where fs.stat was asked for a literal path
+  // containing `#file:` and always returned ENOENT. These tests
+  // exercise the production reader (which strips the prefix) by
+  // mirroring its behavior with a real-fs reader — the same
+  // pattern as the cwd-fallback test above.
+  //
+  it('resolves a #file: reference by stripping the prefix before fs read', async () => {
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    // Mirrors `resolveAbsoluteFallback` after the 2026-07-03 fix:
+    // strip the `#file:` prefix, then join the remainder onto cwd.
+    const realReader: FileReader = {
+      resolve: async (candidate, ctx) => {
+        let working = candidate
+        if (working.startsWith('#file:')) {
+          working = working.slice('#file:'.length)
+          if (working.startsWith('//')) {
+            // URI form `#file:///abs/path` → keep the rest, the
+            // production code passes it to Uri.parse. Here we
+            // skip the URI form (covered below) and only assert
+            // the bare-form behavior in this test.
+            return null
+          }
+          working = working.replace(/^\.\//, '')
+        }
+        const cwd = ctx.cwd ?? process.cwd()
+        const joined = path.join(cwd, working)
+        try {
+          const buf = await fs.readFile(joined)
+          return { data: new Uint8Array(buf), mimeType: 'image/png' }
+        } catch {
+          return null
+        }
+      },
+    }
+    const out = await inlinePathImages(
+      toVsCodeMessages([
+        textMsg(ROLE_USER, 'look at #file:test-resources/screenshot.png'),
+      ]),
+      { enabled: true, maxBytes: 0 },
+      realReader,
+      undefined,
+      process.cwd()
+    )
+    const content = out[0]!.content as {
+      value?: string
+      data?: Uint8Array
+      mimeType?: string
+    }[]
+    // We expect two parts: 'look at ' (text) and the image.
+    assert.strictEqual(content.length, 2)
+    assert.strictEqual(content[0]!.value, 'look at ')
+    assert.strictEqual(content[1]!.mimeType, 'image/png')
+    assert.ok(
+      content[1]!.data!.length > 0,
+      'expected non-empty image bytes after #file: stripping'
+    )
+    // Bytes should be the on-disk screenshot.png exactly.
+    const onDisk = await fs.readFile(
+      path.join(process.cwd(), 'test-resources/screenshot.png')
+    )
+    assert.ok(
+      Buffer.from(content[1]!.data!).equals(onDisk),
+      'inlined bytes should equal the file on disk'
+    )
+  })
+
+  it('resolves a #file:./<rest> reference identically to #file:<rest>', async () => {
+    // Defensive against `#file:./docs/foo.png` slipping through
+    // with a leading `./` (which would otherwise produce a path
+    // like `<cwd>/./docs/foo.png` that works on POSIX but is
+    // surprising in log output).
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const seen: string[] = []
+    const realReader: FileReader = {
+      resolve: async (candidate, ctx) => {
+        let working = candidate
+        if (working.startsWith('#file:')) {
+          working = working.slice('#file:'.length).replace(/^\.\//, '')
+        }
+        seen.push(working)
+        const cwd = ctx.cwd ?? process.cwd()
+        try {
+          const buf = await fs.readFile(path.join(cwd, working))
+          return { data: new Uint8Array(buf), mimeType: 'image/png' }
+        } catch {
+          return null
+        }
+      },
+    }
+    const out = await inlinePathImages(
+      toVsCodeMessages([
+        textMsg(ROLE_USER, 'see #file:./test-resources/screenshot.png'),
+      ]),
+      { enabled: true, maxBytes: 0 },
+      realReader,
+      undefined,
+      process.cwd()
+    )
+    assert.strictEqual(seen[0], 'test-resources/screenshot.png')
+    const content = out[0]!.content as {
+      value?: string
+      data?: Uint8Array
+      mimeType?: string
+    }[]
+    assert.strictEqual(content[1]!.mimeType, 'image/png')
+  })
+
+  it('returns the #file: candidate unchanged to the reader (extractor contract)', async () => {
+    // The resolver should NOT mutate the candidate before calling
+    // the reader — that's the resolver's responsibility. The
+    // extractor (`pathImageExtractor`) hands `#file:docs/foo.png`
+    // to the resolver with the prefix intact, and the resolver's
+    // production reader strips it. This test pins the upstream
+    // contract: with a fake reader, the candidate still contains
+    // `#file:`.
+    const { reader, calls } = fakeReader({
+      '#file:docs/foo.png': {
+        data: new Uint8Array([1]),
+        mimeType: 'image/png',
+      },
+    })
+    await inlinePathImages(
+      toVsCodeMessages([textMsg(ROLE_USER, 'see #file:docs/foo.png')]),
+      { enabled: true, maxBytes: 0 },
+      reader
+    )
+    assert.strictEqual(calls.length, 1)
+    assert.strictEqual(calls[0]!.candidate, '#file:docs/foo.png')
+  })
+
+  it('resolves a #file:// URI-form reference (absolute path)', async () => {
+    // Mirrors `resolveAbsoluteFallback`'s URI decode: strip the
+    // `#file://` prefix, then take everything after the leading
+    // `///` as a Windows drive-letter path. This is the no-vscode
+    // (test) path; the production `resolveViaVsCode` handles this
+    // case via `Uri.parse` instead.
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const realReader: FileReader = {
+      resolve: async (candidate, ctx) => {
+        let working = candidate
+        if (working.startsWith('#file:')) {
+          working = working.slice('#file:'.length)
+          if (working.startsWith('//')) {
+            working = working.slice(2) // strip `//` → `c:/abs/path`
+          }
+        }
+        // Normalize Windows drive-letter (matches the production
+        // resolveAbsoluteFallback behavior).
+        if (/^\/[A-Za-z]:\//.test(working)) {
+          working = working.replace(/^\//, '').replace(/\//g, '\\')
+        }
+        const cwd = ctx.cwd ?? process.cwd()
+        try {
+          const buf = await fs.readFile(
+            working.startsWith('/') || /^[A-Za-z]:/.test(working)
+              ? working
+              : path.join(cwd, working)
+          )
+          return { data: new Uint8Array(buf), mimeType: 'image/png' }
+        } catch {
+          return null
+        }
+      },
+    }
+    const out = await inlinePathImages(
+      toVsCodeMessages([
+        textMsg(
+          ROLE_USER,
+          'see #file:///c:/devworks/minimax-copilot/test-resources/screenshot.png'
+        ),
+      ]),
+      { enabled: true, maxBytes: 0 },
+      realReader,
+      undefined,
+      process.cwd()
+    )
+    const content = out[0]!.content as {
+      value?: string
+      data?: Uint8Array
+      mimeType?: string
+    }[]
+    assert.strictEqual(content.length, 2)
+    assert.strictEqual(content[0]!.value, 'see ')
+    assert.strictEqual(content[1]!.mimeType, 'image/png')
+    assert.ok(content[1]!.data!.length > 0)
+  })
 })

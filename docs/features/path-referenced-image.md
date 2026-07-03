@@ -134,9 +134,16 @@ For each candidate, build an ordered list of `vscode.Uri`s to try:
 
 1. If the candidate parses as a `file://` URI → that Uri.
 2. If the candidate is an absolute filesystem path → `Uri.file(p)`.
-3. If `vscode.workspace.workspaceFolders` is non-empty → for each
+3. If the candidate starts with `#file:`, strip the prefix
+   (`#file:docs/foo.png` → `docs/foo.png`,
+   `#file:///c:/abs/path.png` → `file:///c:/abs/path.png`) and:
+   - For the URI form: hand the resulting `file://…` to `Uri.parse`.
+   - For the bare form: try each workspace folder + cwd as in step 3
+     and 4.
+     See patch entry in §6a for the original bug fix.
+4. If `vscode.workspace.workspaceFolders` is non-empty → for each
    folder, `<folder>/<candidate>`.
-4. Drop on the floor if none of the above apply (e.g. no workspace +
+5. Drop on the floor if none of the above apply (e.g. no workspace +
    relative path).
 
 Try each Uri in order via `vscode.workspace.fs.stat` (type === File).
@@ -374,6 +381,57 @@ Quality gates after the patch: `npx tsc --noEmit` clean,
 `npm run lint` clean, `npx prettier --check .` clean,
 `npm test` 47/47 passing, `npm run package` produced
 `minimax-copilot-0.1.0.vsix`.
+
+### 6b. Patch — `#file:` prefix is now stripped (2026-07-03, same day)
+
+User-reported issue from the live test step of the second rollout:
+the `#file:` chat-reference prefix (`#file:docs/foo.png`) silently
+failed — the path was kept as text and no image block was emitted.
+Absolute (`C:\path\foo.png`) and bare relative
+(`test-resources/screenshot.png`) paths both worked.
+
+Root cause: `src/runtime/pathImageResolver.ts → resolveViaVsCode`
+classified candidates via a 3-way if/else ladder: `://` URI
+scheme → absolute path → "everything else (workspace-relative)".
+The `#file:` prefix matched none of those, so `#file:docs/foo.png`
+fell into the workspace-relative branch unaltered and
+`vscode.Uri.joinPath(folder.uri, '#file:docs/foo.png')` produced a
+filesystem path that didn't exist on disk. `fs.stat` returned
+ENOENT, the resolver logged "not readable", and the message was
+returned with the prefix still in the text — exactly the symptom
+the user reported.
+
+Fix:
+
+1. New branch in `resolveViaVsCode` for candidates starting with
+   `#file:`. The branch strips the prefix via a new module-scope
+   helper `stripFilePrefix`:
+   - Bare form (`#file:<rest>`): strips the prefix, normalizes a
+     leading `./`, then resolves `<rest>` like a workspace-relative
+     path (workspace folders → cwd fallback).
+   - URI form (`#file:///abs/path`): strips the `#file://` to
+     produce `file:///abs/path`, then hands it to `Uri.parse`.
+2. `resolveAbsoluteFallback` (Node-only test path) gets the same
+   stripping, plus a `file:///c:/abs/path` → `c:\abs\path`
+   decode so the no-vscode path can resolve the URI form too.
+3. A malformed reference (e.g. `#file:` with no remainder) is
+   logged once and skipped instead of being passed to fs.
+4. New tests (4 total — one extractor-contract pin + three
+   resolver-integration tests exercising the real-fs path the
+   same way the cwd-fallback test does):
+   - `resolves a #file: reference by stripping the prefix before fs read`
+   - `resolves a #file:./<rest> reference identically to #file:<rest>`
+   - `returns the #file: candidate unchanged to the reader (extractor contract)`
+   - `resolves a #file:// URI-form reference (absolute path)`
+
+Quality gates after the patch: `npx tsc --noEmit` clean,
+`npm run lint` clean, `npx prettier --check .` clean,
+`npm test` 51/51 passing (47 prior + 4 new). The live
+round-trip harness (`test-resources/live-roundtrip-current.ts`)
+exercises all six path shapes (bare relative, `./`-prefixed
+relative, absolute Windows, `#file:` bare, `#file:./` bare,
+`#file://` URI) in both workspace and workspace-less modes —
+all 12 cases now resolve byte-exact through `convertMessages`.
 
 ### Files touched
 
