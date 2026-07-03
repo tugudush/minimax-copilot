@@ -192,6 +192,20 @@ npm run package      # vsce package → .vsix
 npm run ltfb         # lint + typecheck + format + compile (full check)
 ```
 
+### Updating an existing install
+
+After pulling new source, the easiest way to pick up changes is:
+
+```bash
+npm run package
+```
+
+Then in VS Code: **Extensions** panel → ⋯ → **Install from VSIX...** →
+pick `minimax-copilot-0.1.0.vsix`, and **Developer: Reload Window**.
+This atomic replace avoids the "VS Code holds the old JS file open"
+snag that a manual `cp dist/extension.js` into the extensions folder
+can hit.
+
 ---
 
 ## Attribution

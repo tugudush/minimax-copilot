@@ -6,6 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added — `path-referenced-image`
+
+- **Image paths in chat are now inlined as images.** Typing
+  `docs/foo.png`, a Windows/POSIX absolute path, a `file://` URI, or a
+  `#file:` reference in the Copilot Chat composer now reads the file
+  and sends it to MiniMax M3 as a base64 image block, the same way
+  drag-and-drop / paperclip attachment does. Previously these paths
+  arrived as inert text because the Anthropic endpoint has no
+  filesystem access and this extension did not perform path → base64
+  inlining itself. See [`docs/features/path-referenced-image.md`](docs/features/path-referenced-image.md)
+  for the design.
+
+- **Two new settings** (opt-out friendly, defaults below):
+  - `minimax.pathImageInline` — `boolean`, default `true`. Set to
+    `false` if you don't want the extension to read filesystem images
+    during inference.
+  - `minimax.pathImageMaxBytes` — `integer`, default `5242880`
+    (5 MB). Per-image size cap; `0` = no cap.
+
+- Only user-message text is scanned. Assistant and tool-result text
+  is left untouched. Out-of-scope candidates (paths outside the
+  workspace that can't be resolved, over the size cap) are logged at
+  `warn` and left as text — the model still sees the path.
+
 ## [0.1.0] — 2026-07-02
 
 Initial release. PAYG-first VS Code extension that surfaces **MiniMax
