@@ -116,10 +116,20 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
     // message contents are a mix of text and image data parts — exactly
     // what `convert.ts`'s image branch (vision.md §6) turns into
     // Anthropic `image` content blocks.
-    const prepared = await inlinePathImages(messages, {
-      enabled: pathImageInline(),
-      maxBytes: pathImageMaxBytes(),
-    })
+    //
+    // `cwd` is forwarded so workspace-relative paths still resolve
+    // when `vscode.workspace.workspaceFolders` is empty (which is
+    // what the chat provider sees from a workspace-less Chat window).
+    const prepared = await inlinePathImages(
+      messages,
+      {
+        enabled: pathImageInline(),
+        maxBytes: pathImageMaxBytes(),
+      },
+      undefined,
+      token,
+      process.cwd()
+    )
     if (prepared !== messages) {
       logger.info(
         `Chat request: prepared=${prepared.length} msgs (path-image inline active)`

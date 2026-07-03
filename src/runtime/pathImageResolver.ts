@@ -76,6 +76,14 @@ export interface FileReader {
 /** Per-call context passed to `FileReader.resolve`. */
 export interface FileReaderContext {
   readonly maxBytes: number
+  /**
+   * Absolute filesystem path used to resolve workspace-relative
+   * candidates (e.g. `docs/foo.png`) when no `vscode.workspace.workspaceFolders`
+   * is exposed. Defaults to the empty string, which makes the
+   * resolver skip the cwd fallback (preserves the prior behavior in
+   * tests that pass synthetic readers).
+   */
+  readonly cwd?: string
   readonly cancellationToken?: { isCancellationRequested: boolean }
 }
 
@@ -119,17 +127,28 @@ export function __setDefaultReaderForTests(reader: FileReader | null): void {
  * Per-path failures (ENOENT, oversize, permission) are swallowed —
  * the original text is preserved so the model still sees the path.
  * Each path is logged.
+ *
+ * `cwd` is forwarded to the reader so workspace-relative candidates
+ * like `docs/foo.png` resolve against `process.cwd()` when no
+ * `vscode.workspace.workspaceFolders` is exposed (e.g. when the
+ * provider runs in a workspace-less chat window).
  */
 export async function inlinePathImages(
   vscodeMessages: readonly LlmMessage[],
   options: PathImageOptions,
   reader?: FileReader,
-  cancellationToken?: { isCancellationRequested: boolean }
+  cancellationToken?: { isCancellationRequested: boolean },
+  cwd?: string
 ): Promise<LlmMessage[]> {
   if (!options.enabled) return vscodeMessages.slice()
   if (vscodeMessages.length === 0) return vscodeMessages.slice()
 
   const r = reader ?? getDefaultReader()
+  // If the caller didn't give us a cwd but the production path did
+  // (via `getDefaultReader().resolve` injecting it), the reader
+  // already uses it. Otherwise fall back to `process.cwd()` for the
+  // Node-only environments so relative paths resolve in tests too.
+  const effectiveCwd = cwd ?? process.cwd()
   const out: LlmMessage[] = []
 
   for (const msg of vscodeMessages) {
@@ -168,6 +187,7 @@ export async function inlinePathImages(
       // into a `text / image / text / image / ...` sequence.
       const ctx: FileReaderContext = {
         maxBytes: options.maxBytes,
+        cwd: effectiveCwd,
         cancellationToken,
       }
 
@@ -312,18 +332,31 @@ async function resolveViaVsCode(
   } else if (isAbsolutePath(candidate)) {
     candidates.push(vscode.Uri.file(candidate))
   } else {
-    // Workspace-relative: try each workspace folder.
+    // Workspace-relative: try each workspace folder first…
     const folders = vscode.workspace.workspaceFolders
     if (folders !== undefined && folders.length > 0) {
       for (const folder of folders) {
         candidates.push(vscode.Uri.joinPath(folder.uri, candidate))
       }
     }
+    // …then fall back to the supplied cwd. VS Code's
+    // language-model chat provider often runs without a workspace
+    // folder visible (e.g. when the user opened Copilot Chat from a
+    // "no folder" workspace), in which case the only sensible
+    // resolution base for a bare relative path is cwd. Without this
+    // fallback, the path silently fails — which is what we observed
+    // for `test-resources/screenshot.png` while `C:\full\path.png`
+    // worked because it took the absolute branch above.
+    if (ctx.cwd && ctx.cwd.length > 0) {
+      candidates.push(vscode.Uri.file(joinPath(ctx.cwd, candidate)))
+    }
   }
 
   const fs = vscode.workspace.fs
+  let triedAny = false
 
   for (const uri of candidates) {
+    triedAny = true
     try {
       const stat = await fs.stat(uri)
       // File.Type === 2 in vscode.
@@ -337,11 +370,30 @@ async function resolveViaVsCode(
       }
       return { data: bytes, mimeType: mimeFromExtension(candidate) }
     } catch {
-      getLogger().warn(
-        `Skipped path-referenced image (not readable): ${candidate}`
-      )
-      // try next candidate
+      // Try the next candidate (next workspace folder, or the cwd
+      // fallback). Only emit the "not readable" line once we've
+      // exhausted all candidates so the log doesn't get noisy when
+      // both a workspace folder and cwd are tried.
+      continue
     }
+  }
+
+  if (triedAny) {
+    // Don't spam the log on every ENOENT — only when ALL candidates
+    // failed. This makes it obvious why a relative path didn't
+    // inline when the user expects it to.
+    getLogger().warn(
+      `Skipped path-referenced image (not readable): ${candidate}`
+    )
+    return null
+  }
+
+  // No workspace folders AND no cwd → nothing to try.
+  if (!ctx.cwd || ctx.cwd.length === 0) {
+    getLogger().warn(
+      `Skipped path-referenced image (no workspace folder or cwd available): ${candidate}`
+    )
+    return null
   }
 
   // Fallback: absolute path with no vscode in scope.
@@ -349,33 +401,74 @@ async function resolveViaVsCode(
 }
 
 /**
- * Best-effort absolute-path fallback for Node-only environments
- * (tests). Only handles plain absolute filesystem paths — not URIs,
- * not workspace-relative.
+ * Best-effort fallback for Node-only environments (tests) and for
+ * the production `vscode`-less extension context. Handles absolute
+ * filesystem paths directly, and falls back to a `cwd + candidate`
+ * join for relative paths so tests/dev environments work the same
+ * way as production.
  */
 async function resolveAbsoluteFallback(
   candidate: string,
   ctx: FileReaderContext
 ): Promise<{ data: Uint8Array; mimeType: string } | null> {
-  if (!isAbsolutePath(candidate)) return null
   const fs = await import('node:fs/promises')
-  try {
-    const stat = await fs.stat(candidate)
-    if (!stat.isFile()) return null
-    if (ctx.maxBytes > 0 && stat.size > ctx.maxBytes) {
-      getLogger().warn(
-        `Skipped path-referenced image (>${(ctx.maxBytes / 1_048_576).toFixed(1)} MB): ${candidate}`
-      )
-      return null
-    }
-    const buf = await fs.readFile(candidate)
-    return {
-      data: new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength),
-      mimeType: mimeFromExtension(candidate),
-    }
-  } catch {
+  // Build an ordered list of (path, source) pairs. Each entry is a
+  // filesystem path to try; the source helps the caller log which
+  // resolution base actually worked when reading succeeds.
+  const paths: string[] = []
+  if (isAbsolutePath(candidate)) {
+    paths.push(candidate)
+  } else if (ctx.cwd && ctx.cwd.length > 0) {
+    paths.push(joinPath(ctx.cwd, candidate))
+  } else {
     return null
   }
+  // Also try the literal candidate as a last resort — some
+  // workspaces (and process.cwd()) yield the right answer without
+  // an explicit cwd join when the process happens to be at the
+  // workspace root.
+  if (!paths.includes(candidate)) paths.push(candidate)
+
+  for (const p of paths) {
+    try {
+      const stat = await fs.stat(p)
+      if (!stat.isFile()) continue
+      if (ctx.maxBytes > 0 && stat.size > ctx.maxBytes) {
+        getLogger().warn(
+          `Skipped path-referenced image (>${(ctx.maxBytes / 1_048_576).toFixed(1)} MB): ${candidate}`
+        )
+        return null
+      }
+      const buf = await fs.readFile(p)
+      return {
+        data: new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength),
+        mimeType: mimeFromExtension(candidate),
+      }
+    } catch {
+      continue
+    }
+  }
+  return null
+}
+
+/**
+ * Join a cwd and a (possibly `./`-prefixed) candidate, normalizing
+ * the result. Mirrors Node's `path.join` so we don't have to depend
+ * on `path` being loadable in the `vscode` branch's tests.
+ */
+function joinPath(cwd: string, candidate: string): string {
+  // Strip leading `./` segments — they confuse Node's path.join in
+  // some edge cases on Windows when the cwd ends in a backslash.
+  const rel = candidate.replace(/^\.\/(?:\\|\/)?/, '')
+  if (rel.length === 0) return cwd
+  // Be tolerant of forward and backward slashes in `rel` — VS Code
+  // hands us POSIX-style paths even on Windows.
+  const normalizedRel = cwd.includes('\\')
+    ? rel.replace(/\//g, '\\')
+    : rel.replace(/\\/g, '/')
+  const sep = cwd.includes('\\') ? '\\' : '/'
+  if (cwd.endsWith('\\') || cwd.endsWith('/')) return `${cwd}${normalizedRel}`
+  return `${cwd}${sep}${normalizedRel}`
 }
 
 /** True for OS-absolute paths. Doesn't try to be exhaustive. */

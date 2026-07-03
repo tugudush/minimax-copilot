@@ -336,6 +336,45 @@ VS Code can cancel mid-batch.
 
 Implemented on 2026-07-03 on branch `feature/path-referenced-image`.
 
+### 6a. Patch — relative-path cwd fallback (2026-07-03, same day)
+
+User-reported issue from the live test step of the rollout:
+absolute paths like `C:\path\foo.png` worked, but **bare relative
+paths like `test-resources/screenshot.png` did not.**
+
+Root cause: `src/runtime/pathImageResolver.ts → resolveViaVsCode`
+only resolved relative candidates against
+`vscode.workspace.workspaceFolders`. When the chat provider runs
+in a workspace-less chat window (open Copilot Chat from a "no
+folder" workspace) that array is empty and the resolver silently
+returned `null` — no log line, no fallback. Absolute paths went
+through a separate branch (`vscode.Uri.file(...)`) that doesn't
+need workspace folders, which is why they worked.
+
+Fix:
+
+1. `FileReaderContext` now carries an optional `cwd` (defaults to
+   the empty string so existing test behavior is preserved).
+2. `inlinePathImages(...)` accepts a 5th `cwd` arg and forwards it.
+   The provider in `src/provider/index.ts` now passes
+   `process.cwd()` as that arg.
+3. `resolveViaVsCode` and `resolveAbsoluteFallback` both try
+   `<cwd>/<candidate>` as a fallback after the workspace folder
+   list is exhausted.
+4. The "not readable" log line is now emitted **once per
+   candidate** (after all the Uris have been tried) instead of
+   per-attempt, so users can see _why_ a path was skipped without
+   the log getting flooded.
+5. New tests:
+   - `forwards cwd from inlinePathImages argument into the reader context`
+   - `reader sees cwd in context, allowing the provider to enable a process.cwd() fallback`
+   - `keeps the text part intact when the workspace-relative candidate has no cwd and no workspace folder`
+
+Quality gates after the patch: `npx tsc --noEmit` clean,
+`npm run lint` clean, `npx prettier --check .` clean,
+`npm test` 47/47 passing, `npm run package` produced
+`minimax-copilot-0.1.0.vsix`.
+
 ### Files touched
 
 | File                                     | What                                                                                                    |

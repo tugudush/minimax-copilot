@@ -38,6 +38,7 @@ interface ResolvedImage {
 interface FakeReaderCall {
   candidate: string
   maxBytes: number
+  ctx: { maxBytes: number; cwd?: string; cancellationToken?: unknown }
 }
 
 /**
@@ -53,7 +54,7 @@ function fakeReader(entries: Record<string, ResolvedImage | null>): {
     calls,
     reader: {
       resolve(candidate, ctx) {
-        calls.push({ candidate, maxBytes: ctx.maxBytes })
+        calls.push({ candidate, maxBytes: ctx.maxBytes, ctx })
         return Promise.resolve(entries[candidate] ?? null)
       },
     },
@@ -398,5 +399,92 @@ describe('inlinePathImages', () => {
     assert.strictEqual(content[1]!.data, png)
     assert.strictEqual(content[2]!.mimeType, 'image/jpeg')
     assert.strictEqual(content[2]!.data, attached.data)
+  })
+
+  it('forwards cwd from inlinePathImages argument into the reader context', async () => {
+    // The reader records the ctx we hand it; verify the resolver
+    // threads our explicit cwd through (not process.cwd(), which
+    // happens to match here anyway). This is the contract the
+    // provider relies on.
+    const { reader, calls } = fakeReader({})
+    await inlinePathImages(
+      toVsCodeMessages([textMsg(ROLE_USER, 'docs/foo.png')]),
+      { enabled: true, maxBytes: 0 },
+      reader,
+      undefined,
+      '/some/explicit/cwd'
+    )
+    assert.strictEqual(calls.length, 1)
+    assert.strictEqual(calls[0]!.candidate, 'docs/foo.png')
+    // The resolution ctx exposes cwd so the default reader can join
+    // a workspace-relative path against it when no workspace folder
+    // is exposed.
+    assert.strictEqual(calls[0]!.ctx.cwd, '/some/explicit/cwd')
+  })
+
+  it('reader sees cwd in context, allowing the provider to enable a process.cwd() fallback', async () => {
+    // Real reader that proves a workspace-relative candidate
+    // resolves against the context's cwd, even when there is no
+    // vscode.workspace.workspaceFolders list. We mirror what
+    // `resolveAbsoluteFallback` does in production by joining the
+    // candidate onto cwd and reading through node:fs.
+    const fs = await import('node:fs/promises')
+    const path = await import('node:path')
+    const realReader: FileReader = {
+      resolve: async (candidate, ctx) => {
+        const cwd = ctx.cwd ?? process.cwd()
+        const joined = path.join(cwd, candidate)
+        try {
+          const buf = await fs.readFile(joined)
+          return {
+            data: new Uint8Array(buf),
+            mimeType: 'image/png',
+          }
+        } catch {
+          return null
+        }
+      },
+    }
+    const out = await inlinePathImages(
+      toVsCodeMessages([
+        textMsg(ROLE_USER, 'look at test-resources/screenshot.png please'),
+      ]),
+      { enabled: true, maxBytes: 0 },
+      realReader,
+      undefined,
+      // The repo root — which is process.cwd() in `npm test`.
+      process.cwd()
+    )
+    const content = out[0]!.content as {
+      value?: string
+      data?: Uint8Array
+      mimeType?: string
+    }[]
+    assert.ok(
+      content.some((p) => p.mimeType === 'image/png' && p.data!.length > 0),
+      'expected an inlined image part (proves cwd fallback reached the reader)'
+    )
+  })
+
+  it('keeps the text part intact when the workspace-relative candidate has no cwd and no workspace folder', async () => {
+    // Reader that mimics the production `resolveViaVsCode` flow when
+    // both workspace folders and the cwd fallback are unavailable:
+    // every relative candidate returns null and nothing is logged.
+    const { reader } = fakeReader({}) // all candidates return null
+    const input = [textMsg(ROLE_USER, 'look at docs/missing.png please')]
+    const out = await inlinePathImages(
+      toVsCodeMessages(input),
+      { enabled: true, maxBytes: 0 },
+      reader,
+      undefined,
+      '' // no cwd → resolver skips fallback in the production path
+    )
+    const content = out[0]!.content as {
+      value?: string
+      data?: Uint8Array
+      mimeType?: string
+    }[]
+    assert.strictEqual(content.length, 1)
+    assert.strictEqual(content[0]!.value, input[0]!.content[0]!.value)
   })
 })
