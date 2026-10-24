@@ -50,7 +50,7 @@ npm run package
 This produces a file like:
 
 ```
-minimax-copilot-0.1.0.vsix
+minimax-copilot-0.2.0.vsix
 ```
 
 The `package` script runs `vsce package` which:
@@ -62,7 +62,7 @@ The `package` script runs `vsce package` which:
 ### What's in the `.vsix`?
 
 ```
-minimax-copilot-0.1.0.vsix  (zip archive)
+minimax-copilot-0.2.0.vsix  (zip archive)
 ├── extension/
 │   ├── package.json
 │   ├── dist/
@@ -84,7 +84,7 @@ Before publishing, verify the package works:
 
 ```bash
 # Install from the .vsix
-code --install-extension minimax-copilot-0.1.0.vsix
+code --install-extension minimax-copilot-0.2.0.vsix
 ```
 
 Or in VS Code: **Extensions** → `···` → **Install from VSIX…** → select the file.
@@ -134,13 +134,13 @@ npx vsce publish
 The Marketplace does not allow re-publishing the same version. Before each publish:
 
 ```bash
-# Patch: 0.1.0 → 0.1.1
+# Patch: 0.2.0 → 0.2.1
 npm version patch
 
-# Minor: 0.1.0 → 0.2.0
+# Minor: 0.2.0 → 0.3.0
 npm version minor
 
-# Major: 0.1.0 → 1.0.0
+# Major: 0.2.0 → 1.0.0
 npm version major
 ```
 
@@ -187,7 +187,7 @@ If the proposal graduates to a stable API, update `enabledApiProposals` and the 
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `ERROR  Publisher not found`                          | Create a publisher at <https://marketplace.visualstudio.com> matching the `publisher` field in `package.json`. |
 | `ERROR  Unauthorized`                                 | Re-run `npx vsce login minimax-copilot-paygo` with a valid PAT.                                                |
-| `ERROR  Manifest missing field "version"`             | Ensure `package.json` has a valid `version` (e.g. `0.1.0`).                                                    |
+| `ERROR  Manifest missing field "version"`             | Ensure `package.json` has a valid `version` (e.g. `0.2.0`).                                                    |
 | `ERROR  Cannot find module 'vscode'`                  | This is expected in bundled builds — `vscode` is marked `external` in esbuild. `vsce package` handles it.      |
 | Extension installs but doesn't appear in Copilot Chat | Confirm you're on a VS Code build with `languageModelThinkingPart` support (Insiders).                         |
 | Version already exists on Marketplace                 | Bump the version with `npm version patch` before publishing.                                                   |

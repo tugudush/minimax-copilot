@@ -2,7 +2,7 @@
   "name": "minimax-copilot",
   "displayName": "MiniMax Copilot",
   "description": "MiniMax models in Copilot Chat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "minimax-copilot-paygo",
   "license": "MIT",
   "repository": {
@@ -39,7 +39,7 @@
           {
             "id": "welcome",
             "title": "Welcome",
-            "description": "MiniMax M3 in Copilot Chat with a pay‑as‑you‑go key.",
+            "description": "MiniMax M3.1 Flash in Copilot Chat with a pay‑as‑you‑go key.",
             "media": {
               "markdown": "walkthroughs/setup/welcome.md"
             }
@@ -66,7 +66,7 @@
           {
             "id": "thinking",
             "title": "Adaptive Thinking",
-            "description": "M3 reasoning as a collapsible block in Copilot Chat.",
+            "description": "M3.1 Flash / M3 reasoning as a collapsible block in Copilot Chat.",
             "media": {
               "markdown": "walkthroughs/setup/thinking.md"
             }
@@ -102,6 +102,10 @@
         "title": "MiniMax: Toggle Thinking"
       },
       {
+        "command": "minimax.setThinkingEffort",
+        "title": "MiniMax: Set Thinking Effort"
+      },
+      {
         "command": "minimax.showLogs",
         "title": "MiniMax: Show Logs"
       }
@@ -117,7 +121,19 @@
         "minimax.thinking": {
           "type": "boolean",
           "default": true,
-          "description": "Enable adaptive reasoning/thinking for MiniMax M3."
+          "description": "Enable adaptive reasoning/thinking for MiniMax M3. Has no effect on MiniMax M3.1 Flash, which always thinks."
+        },
+        "minimax.thinkingEffort": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "default": "max",
+          "description": "Thinking depth for MiniMax M3.1 Flash. Higher levels think more thoroughly at the cost of latency and tokens. Has no effect on other models."
         },
         "minimax.visibleModels": {
           "type": "array",

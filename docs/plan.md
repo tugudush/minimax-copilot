@@ -1,6 +1,6 @@
 # Plan — MiniMax Copilot (PAYG + Thinking)
 
-> A **minimal** VS Code extension that surfaces **MiniMax M3** (and M2.7) inside **GitHub Copilot Chat**, focused on exactly three things: **pay‑as‑you‑go key support**, **reasoning/thinking really enabled**, and a **collapsible thinking block**. No spend dashboard, no balance monitor, no budgets — just working chat with reasoning.
+> A **minimal** VS Code extension that surfaces **MiniMax M3** (and M3.1 Flash) inside **GitHub Copilot Chat**, focused on exactly three things: **pay‑as‑you‑go key support**, **reasoning/thinking really enabled**, and a **collapsible thinking block**. No spend dashboard, no balance monitor, no budgets — just working chat with reasoning.
 
 Inspired by [`klarkxy/minimax-vscode`](https://github.com/klarkxy/minimax-vscode). See [Attribution & licensing](#attribution--licensing).
 
@@ -64,7 +64,7 @@ src/
 ├── i18n.ts                  # en + zh message dictionary + locale detection
 ├── logger.ts                # output channel + redaction + verbose dump
 ├── models/
-│   └── registry.ts          # M3 / M3-Priority / M2.7 / M2.7-highspeed + pricing tooltip
+│   └── registry.ts          # M3.1-Flash / M3 / M3-Priority + pricing tooltip
 ├── auth.ts                  # single key in SecretStorage + onDidChangeApiKey emitter
 ├── client/
 │   ├── client.ts            # @anthropic-ai/sdk streaming wrapper; SSE → text / thinking / tool-call parts
@@ -103,7 +103,9 @@ src/
 
 ### 4.2 Model registry (`models/registry.ts`)
 
-M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the original). M3: 1M context window (advertised as `maxInputTokens` to Copilot Chat), `thinking: true` (adaptive only — no budget slider, matching the upstream endpoint). M2.7: 200K (204,800) tokens, no thinking. Tool limit 128; image/video input on M3. Picker tooltip shows the per‑million‑token PAYG price row for the active region.
+M3.1‑Flash / M3 / M3‑Priority. M3.1‑Flash: 1M context window, always‑on thinking with tunable depth (`output_config.effort`). M3: 1M context window (advertised as `maxInputTokens` to Copilot Chat), `thinking: true` (adaptive only — no budget slider, matching the upstream endpoint). Tool limit 128; image/video input on both. Picker tooltip shows the per‑million‑token PAYG price row for the active region.
+
+> The M2.x models were removed once MiniMax retired the M2.5 / M2.7 families (2026‑11‑18) and the Anthropic‑compatible endpoint narrowed to M3.1‑Flash and M3.
 
 ### 4.3 Auth — single key, PAYG‑correct (`auth.ts`)
 
@@ -122,7 +124,7 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 ### 4.5 Thinking — the star feature (`client/client.ts`, `client/convert.ts`)
 
-- **Enable:** for M3, send `thinking: { type: "adaptive" }` when `minimax.thinking` is on (default `true`). When off, the `thinking` field is **omitted** from the request body entirely (Anthropic-compatible endpoints treat the absent field as "no thinking" — we do not send `{type: "disabled"}`; the code in `src/client/client.ts` simply doesn't set the key). M2.7 has no thinking; the field is always omitted for M2.7-family models.
+- **Enable:** for M3, send `thinking: { type: "adaptive" }` when `minimax.thinking` is on (default `true`). When off, the `thinking` field is **omitted** from the request body entirely (Anthropic-compatible endpoints treat the absent field as "no thinking" — we do not send `{type: "disabled"}`; the code in `src/client/client.ts` simply doesn't set the key). M3.1‑Flash always thinks — the API rejects `thinking: {type: "disabled"}` with a `400` — so its depth is tuned via `output_config.effort` instead.
 - **Stream:** map Anthropic `thinking_delta` → `new vscode.LanguageModelThinkingPart(text)`. Assign **one stable `id` per turn** (e.g. `minimax-thinking-<turn>`) and pass it via the part's `id` so Copilot Chat renders its stateful **collapsible** `ThinkingDataContainer`.
 - **Replay:** when prior assistant turns contain thinking blocks, re‑emit them in the request with their `signature` (Anthropic requires signed thinking blocks in history) so the model sees its own past reasoning.
 - **Availability guard:** `languageModelThinkingPart` is proposed. Detect `vscode.LanguageModelThinkingPart` at runtime; if absent (stable VS Code without the proposal active), thinking deltas are dropped gracefully — chat still works, just without the reasoning block. The README documents that the collapsible reasoning block needs a build where the proposal is active (Insiders / approved).
@@ -233,7 +235,7 @@ M3 / M3‑Priority / M2.7 / M2.7‑highspeed (same proven entries as the origina
 
 **All phases complete.** The extension is ready for release:
 
-- PAYG chat works with MiniMax M3 / M2.7 (no Token‑Plan probe, no region misrouting).
+- PAYG chat works with MiniMax M3.1 Flash / M3 (no Token‑Plan probe, no region misrouting).
 - Adaptive thinking on by default with collapsible "Thinking" block (`LanguageModelThinkingPart`).
 - Thinking replay with signatures for multi‑turn conversations (covered by 15 unit tests in `test/convert.test.ts`).
 - Error toasts (401/402/403/429/5xx) with bilingual i18n and billing deep link.

@@ -213,7 +213,7 @@ Scope: [src/client/convert.ts](../../src/client/convert.ts) (primary) +
 
 7. **Runtime rollout**: per repo memory, source edits do not take effect
    until `dist/extension.js` is rebuilt and reinstalled into
-   `~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-0.1.0/` and
+   `~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-<version>/` and
    VS Code is reloaded (fully quit first — reinstalling while VS Code holds
    the extension folder silently no-ops).
 
@@ -303,7 +303,7 @@ two helpers) and `test/convert.test.ts` (one new helper + five new tests).
 
 Source edits do not affect the running extension until `dist/extension.js`
 is rebuilt and copied/reinstalled into
-`~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-0.1.0/`, then VS
+`~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-<version>/`, then VS
 Code is reloaded (per repo memory). `npm run compile` (esbuild) rebuilds
 `dist/extension.js`; the copy/reinstall + full VS Code quit is the remaining
 manual step before live verification (§5).

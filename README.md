@@ -1,15 +1,16 @@
 # MiniMax Copilot (PAYG)
 
-A minimal VS Code extension that surfaces **MiniMax M3 / M2.7** inside **GitHub Copilot Chat** with pay‑as‑you‑go key support and collapsible reasoning.
+A minimal VS Code extension that surfaces **MiniMax M3.1 Flash / M3** inside **GitHub Copilot Chat** with pay‑as‑you‑go key support and collapsible reasoning.
 
 ---
 
 ## Features
 
+- **M3.1 Flash** — the latest MiniMax M-series model: 1M context, multimodal input, always-on reasoning with tunable depth, and the lowest PAYG price ($0.15 / $0.60 per M tokens).
 - **M3 adaptive thinking** — reasoning streamed as a collapsible "Thinking" block in Copilot Chat (requires a VS Code build with the `languageModelThinkingPart` proposal active — Insiders / approved).
 - **PAYG‑first** — works with a MiniMax pay‑as‑you‑go API key. No Token‑Plan subscription required.
 - **China / Global endpoint switch** — pick the endpoint that matches your MiniMax account region.
-- **Four model tiers** — M3 standard, M3 priority, M2.7 standard, M2.7 highspeed.
+- **Three model tiers** — M3.1 Flash, M3 standard, M3 priority.
 - **Secure key storage** — API key stored in VS Code SecretStorage, never written to disk or settings files.
 - **Minimal** — no dashboards, no budgets, no balance monitors. Just chat, with reasoning.
 
@@ -34,7 +35,7 @@ A minimal VS Code extension that surfaces **MiniMax M3 / M2.7** inside **GitHub 
 git clone https://github.com/tugudush/minimax-copilot.git
 cd minimax-copilot
 npm install
-npm run package        # produces minimax-copilot-0.1.0.vsix
+npm run package        # produces minimax-copilot-0.2.0.vsix
 ```
 
 Then install the generated `.vsix` via the Extensions panel: `...` → **Install from VSIX...** → select the file.
@@ -87,6 +88,16 @@ MiniMax: Toggle Thinking
 
 > **Note:** The collapsible "Thinking" block in Copilot Chat requires a VS Code build with the `languageModelThinkingPart` proposal active (Insiders / approved). On stable VS Code, chat works normally — the reasoning stream is included inline in the response.
 
+### 5. (Optional) Set the thinking depth for M3.1 Flash
+
+**MiniMax M3.1 Flash always reasons** — the API rejects `thinking: disabled`. Tune how deeply it thinks instead:
+
+```
+MiniMax: Set Thinking Effort
+```
+
+Pick `low`, `medium`, `high`, `xhigh`, or `max` (the default). Higher levels reason more thoroughly, at the cost of latency and tokens.
+
 ---
 
 ## Usage
@@ -102,20 +113,27 @@ Your PAYG key is billed per token directly by MiniMax — no subscription requir
 
 ### Available models
 
-| Model                      | ID                       | Context     | Thinking | Multimodal  | Best for                          |
-| -------------------------- | ------------------------ | ----------- | -------- | ----------- | --------------------------------- |
-| **MiniMax M3**             | `minimax-m3`             | 1M tokens   | ✅       | ✅ (images) | General coding, deep reasoning    |
-| **MiniMax M3 Priority**    | `minimax-m3-priority`    | 1M tokens   | ✅       | ✅ (images) | Low-latency M3 (higher cost)      |
-| **MiniMax M2.7**           | `minimax-m2.7`           | 200K tokens | ❌       | ❌          | Fast, cost-effective coding       |
-| **MiniMax M2.7 Highspeed** | `minimax-m2.7-highspeed` | 200K tokens | ❌       | ❌          | Quick completions, lowest latency |
+| Model                   | ID                    | Context   | Thinking        | Multimodal  | Best for                          |
+| ----------------------- | --------------------- | --------- | --------------- | ----------- | --------------------------------- |
+| **MiniMax M3.1 Flash**  | `MiniMax-M3.1-Flash`  | 1M tokens | ✅ always-on    | ✅ (images) | Fastest, cheapest, agentic coding |
+| **MiniMax M3**          | `minimax-m3`          | 1M tokens | ✅ (toggleable) | ✅ (images) | General coding, deep reasoning    |
+| **MiniMax M3 Priority** | `minimax-m3-priority` | 1M tokens | ✅ (toggleable) | ✅ (images) | Low-latency M3 (higher cost)      |
+
+> **M3.1 Flash thinking.** This model always reasons — the API rejects
+> `thinking: disabled` with a `400`. Tune the depth instead with
+> **MiniMax: Set Thinking Effort** (`low` → `max`). The
+> **MiniMax: Toggle Thinking** command does not affect it.
+
+> **M2.x models were removed.** MiniMax retired the M2.5 / M2.7
+> families on 2026-11-18, and the Anthropic-compatible endpoint now
+> serves only M3.1 Flash and M3.
 
 ### PAYG pricing (USD per million tokens)
 
 | Model            | Input                 | Output                | Cache read |
 | ---------------- | --------------------- | --------------------- | ---------- |
+| M3.1 Flash       | $0.15                 | $0.60                 | $0.015     |
 | M3 / M3 Priority | $0.30 (priority +50%) | $1.20 (priority +50%) | $0.06      |
-| M2.7             | $0.30                 | $1.20                 | $0.06      |
-| M2.7 Highspeed   | $0.60                 | $2.40                 | $0.06      |
 
 > China-region keys are billed in **¥** (CNY) at approximately the same rates.
 
@@ -132,8 +150,9 @@ Configure via **File → Preferences → Settings** (`Ctrl+,`) and search for `m
 | Setting                   | Type      | Default     | Description                                                                               |
 | ------------------------- | --------- | ----------- | ----------------------------------------------------------------------------------------- |
 | `minimax.apiBaseUrl`      | `string`  | `""` (auto) | Override the Anthropic-compatible base URL. Auto-picked from your chosen region.          |
-| `minimax.thinking`        | `boolean` | `true`      | Enable adaptive reasoning for M3 models. Has no effect on M2.7.                           |
-| `minimax.visibleModels`   | `array`   | `[]` (all)  | Model IDs to show in the picker. Example: `["minimax-m3", "minimax-m2.7"]`                |
+| `minimax.thinking`        | `boolean` | `true`      | Enable adaptive reasoning for M3 models. Has no effect on M3.1 Flash (always on).         |
+| `minimax.thinkingEffort`  | `string`  | `"max"`     | Thinking depth for M3.1 Flash: `low`, `medium`, `high`, `xhigh`, or `max`.                |
+| `minimax.visibleModels`   | `array`   | `[]` (all)  | Model IDs to show in the picker. Example: `["MiniMax-M3.1-Flash", "minimax-m3"]`          |
 | `minimax.maxOutputTokens` | `number`  | `0`         | Output token cap per request. `0` = model decides.                                        |
 | `minimax.debugMode`       | `string`  | `"minimal"` | Log verbosity: `"minimal"`, `"metadata"`, or `"verbose"` (writes request bodies to disk). |
 
@@ -141,14 +160,15 @@ Configure via **File → Preferences → Settings** (`Ctrl+,`) and search for `m
 
 ## Commands
 
-| Command              | Palette                          | Purpose                               |
-| -------------------- | -------------------------------- | ------------------------------------- |
-| **Set API Key**      | `MiniMax: Set API Key`           | Store your PAYG key in SecretStorage. |
-| **Clear API Key**    | `MiniMax: Clear API Key`         | Remove the stored key.                |
-| **Switch to Global** | `MiniMax: Switch to Global API`  | Use `api.minimax.io` endpoint.        |
-| **Switch to China**  | `MiniMax: Switch to Chinese API` | Use `api.minimaxi.com` endpoint.      |
-| **Toggle Thinking**  | `MiniMax: Toggle Thinking`       | Enable/disable M3 adaptive reasoning. |
-| **Show Logs**        | `MiniMax: Show Logs`             | Open the extension output channel.    |
+| Command                 | Palette                          | Purpose                               |
+| ----------------------- | -------------------------------- | ------------------------------------- |
+| **Set API Key**         | `MiniMax: Set API Key`           | Store your PAYG key in SecretStorage. |
+| **Clear API Key**       | `MiniMax: Clear API Key`         | Remove the stored key.                |
+| **Switch to Global**    | `MiniMax: Switch to Global API`  | Use `api.minimax.io` endpoint.        |
+| **Switch to China**     | `MiniMax: Switch to Chinese API` | Use `api.minimaxi.com` endpoint.      |
+| **Toggle Thinking**     | `MiniMax: Toggle Thinking`       | Enable/disable M3 adaptive reasoning. |
+| **Set Thinking Effort** | `MiniMax: Set Thinking Effort`   | Pick the M3.1 Flash reasoning depth.  |
+| **Show Logs**           | `MiniMax: Show Logs`             | Open the extension output channel.    |
 
 ---
 
@@ -170,11 +190,11 @@ Configure via **File → Preferences → Settings** (`Ctrl+,`) and search for `m
 
 - The collapsible "Thinking" block requires a VS Code build where the `languageModelThinkingPart` proposal is active. This is available in **VS Code Insiders** or approved stable builds.
 - On standard stable VS Code, reasoning content is still delivered — it appears inline in the response text.
-- Ensure `minimax.thinking` is `true` and you are using an M3 model (M2.7 does not support thinking).
+- Ensure `minimax.thinking` is `true` and you are using an M3 model. M3.1 Flash always thinks regardless of this setting.
 
 ### High latency or slow responses
 
-- M3 models may take longer due to adaptive reasoning. Switch to **MiniMax M2.7 Highspeed** for lower latency.
+- M3 models may take longer due to adaptive reasoning. For M3.1 Flash, lower the reasoning depth with **MiniMax: Set Thinking Effort** — `low` or `medium` is noticeably faster than `max`.
 - If using the China endpoint from outside China, expect higher network latency.
 
 ---

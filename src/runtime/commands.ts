@@ -7,8 +7,13 @@
 
 import * as vscode from 'vscode'
 import { setApiKey, clearApiKey } from '../auth'
-import { HOST_CHINA, HOST_GLOBAL, CONFIG_SECTION } from '../consts'
-import { thinking } from '../config'
+import {
+  HOST_CHINA,
+  HOST_GLOBAL,
+  CONFIG_SECTION,
+  THINKING_EFFORTS,
+} from '../consts'
+import { thinking, thinkingEffort } from '../config'
 import { getChannel } from '../logger'
 import { t } from '../i18n'
 
@@ -57,6 +62,29 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         .update('thinking', next, vscode.ConfigurationTarget.Global)
       vscode.window.showInformationMessage(
         next ? t('thinking.on') : t('thinking.off')
+      )
+    }),
+
+    vscode.commands.registerCommand('minimax.setThinkingEffort', async () => {
+      const current = thinkingEffort()
+      const picked = await vscode.window.showQuickPick(
+        [...THINKING_EFFORTS].map((level) => ({
+          label: level,
+          description: level === current ? '✓' : undefined,
+        })),
+        { placeHolder: t('effort.prompt') }
+      )
+      if (!picked) return
+
+      await vscode.workspace
+        .getConfiguration(CONFIG_SECTION)
+        .update(
+          'thinkingEffort',
+          picked.label,
+          vscode.ConfigurationTarget.Global
+        )
+      vscode.window.showInformationMessage(
+        t('effort.done').replace('{level}', picked.label)
       )
     }),
 
