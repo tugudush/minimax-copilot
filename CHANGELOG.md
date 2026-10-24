@@ -48,6 +48,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Thinking is gated on registry metadata.** The request builder
   now consults the model's `thinking` flag instead of matching
   `m3` against the model ID string.
+- **README and walkthroughs now describe how to enable the proposed
+  API for a local install.** The previous wording implied the
+  collapsible Thinking block worked on Insiders out of the box. In
+  fact VS Code strips `languageModelThinkingPart` from _all_ installed
+  extensions that are not on its built-in allowlist — including this
+  one — so the block is dropped unless the user adds the extension to
+  `argv.json` under `enable-proposed-api`.
+
+### Known limitations
+
+- **Marketplace publishing is blocked** by the `languageModelThinkingPart`
+  proposed API. `vsce publish` fails with "Extensions using unallowed
+  proposed API". Passing `--allow-proposed-apis` bypasses the client-side
+  check, but VS Code then strips the proposal at runtime, so the
+  collapsible Thinking block would not render for Marketplace users.
+  See `docs/publishing.md` for the two viable paths (publish without the
+  proposal, or obtain approval from the VS Code team).
 
 ---
 

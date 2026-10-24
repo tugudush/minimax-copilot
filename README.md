@@ -7,7 +7,7 @@ A minimal VS Code extension that surfaces **MiniMax M3.1 Flash / M3** inside **G
 ## Features
 
 - **M3.1 Flash** — the latest MiniMax M-series model: 1M context, multimodal input, always-on reasoning with tunable depth, and the lowest PAYG price ($0.15 / $0.60 per M tokens).
-- **M3 adaptive thinking** — reasoning streamed as a collapsible "Thinking" block in Copilot Chat (requires a VS Code build with the `languageModelThinkingPart` proposal active — Insiders / approved).
+- **M3 adaptive thinking** — reasoning streamed as a collapsible "Thinking" block in Copilot Chat (requires the `languageModelThinkingPart` proposed API — see [Thinking block not rendering](#thinking-block-not-rendering)).
 - **PAYG‑first** — works with a MiniMax pay‑as‑you‑go API key. No Token‑Plan subscription required.
 - **China / Global endpoint switch** — pick the endpoint that matches your MiniMax account region.
 - **Three model tiers** — M3.1 Flash, M3 standard, M3 priority.
@@ -23,7 +23,7 @@ A minimal VS Code extension that surfaces **MiniMax M3.1 Flash / M3** inside **G
 | **VS Code**                   | **1.111.0** or later                                                                                                                               |
 | **GitHub Copilot Chat**       | Installed and signed in                                                                                                                            |
 | **MiniMax API key**           | PAYG key from [platform.minimax.io](https://platform.minimax.io) (International) or [platform.minimaxi.com](https://platform.minimaxi.com) (China) |
-| **Thinking block (optional)** | VS Code Insiders or a build with the `languageModelThinkingPart` proposal enabled                                                                  |
+| **Thinking block (optional)** | A build where the `languageModelThinkingPart` proposal is enabled — see [Thinking block not rendering](#thinking-block-not-rendering)              |
 
 ---
 
@@ -86,7 +86,7 @@ Thinking is **on by default** for M3 models. To turn it off:
 MiniMax: Toggle Thinking
 ```
 
-> **Note:** The collapsible "Thinking" block in Copilot Chat requires a VS Code build with the `languageModelThinkingPart` proposal active (Insiders / approved). On stable VS Code, chat works normally — the reasoning stream is included inline in the response.
+> **Note:** The collapsible "Thinking" block in Copilot Chat requires the `languageModelThinkingPart` proposed API to be active. On builds where it is not, chat works normally — the reasoning stream is included inline in the response. See [Thinking block not rendering](#thinking-block-not-rendering) for how to enable it.
 
 ### 5. (Optional) Set the thinking depth for M3.1 Flash
 
@@ -188,9 +188,36 @@ Configure via **File → Preferences → Settings** (`Ctrl+,`) and search for `m
 
 ### Thinking block not rendering
 
-- The collapsible "Thinking" block requires a VS Code build where the `languageModelThinkingPart` proposal is active. This is available in **VS Code Insiders** or approved stable builds.
-- On standard stable VS Code, reasoning content is still delivered — it appears inline in the response text.
-- Ensure `minimax.thinking` is `true` and you are using an M3 model. M3.1 Flash always thinks regardless of this setting.
+The collapsible "Thinking" block needs the `languageModelThinkingPart` proposed API. VS Code **strips the proposal from installed extensions** unless the extension is on VS Code's built-in allowlist — this extension is not, so the block is silently dropped and reasoning arrives as inline text instead.
+
+Check the log: **Help → Toggle Developer Tools → Console**, or `Help → Show Logs…`. You will see:
+
+```
+Extension 'minimax-copilot-paygo.minimax-copilot' CANNOT USE these API proposals
+'languageModelThinkingPart'. You MUST start in extension development mode or use the
+--enable-proposed-api command line flag
+```
+
+**To enable it for a local install**, add the extension to `argv.json`:
+
+1. Run **Preferences: Configure Runtime Arguments** (from the Command Palette).
+2. Add the extension ID to the `enable-proposed-api` array:
+
+   ```json
+   "enable-proposed-api": ["minimax-copilot-paygo.minimax-copilot"]
+   ```
+
+3. Fully quit VS Code and relaunch — `argv.json` is read only at startup.
+
+Alternatively, launch VS Code with the flag:
+
+```bash
+code --enable-proposed-api=minimax-copilot-paygo.minimax-copilot
+```
+
+Without the proposal, everything else still works: chat, tool calling, images, and the M3.1 Flash / M3 / M3 Priority models. Only the collapsible rendering is lost.
+
+> **Note:** the proposed API is unstable and may change between VS Code releases, and it is not covered by VS Code's API stability guarantees.
 
 ### High latency or slow responses
 

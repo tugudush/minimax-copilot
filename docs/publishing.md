@@ -170,14 +170,44 @@ It may take a few minutes for the Marketplace index to update.
 
 This extension uses the **proposed** `languageModelThinkingPart` API via `enabledApiProposals` in `package.json`.
 
+> ⚠️ **Publishing to the Marketplace is blocked by this.** `vsce publish` fails with:
+>
+> ```
+> ERROR  Extensions using unallowed proposed API (enabledApiProposals:
+> [languageModelThinkingPart], allowed: []) can't be published to the Marketplace.
+> ```
+>
+> The `allowed` list comes only from the `--allow-proposed-apis` / `--allow-all-proposed-apis` CLI flags — there is no server-side allowlist vsce consults. Passing the flag lets the upload through, but VS Code then **strips the proposal at runtime** for any extension that is not a built-in and not on VS Code's `product.json#extensionEnabledApiProposals` allowlist (that list lives in the private `vscode-distro` repo). The extension still activates and chat works, but the collapsible Thinking block is silently dropped for Marketplace users.
+>
+> **Options:**
+>
+> 1. **Publish without the proposal** — remove `enabledApiProposals` from `package.json`; reasoning degrades to inline text on all builds. Honest and review-safe, but the collapsible block is unavailable.
+> 2. **Get approved by the VS Code team** — open an issue requesting `languageModelThinkingPart` for `minimax-copilot-paygo.minimax-copilot`. They add the extension to the allowlist in the `vscode-distro` product mixins, after which the block works for everyone. This is the mechanism documented in the VS Code repo's `extensions/copilot/CONTRIBUTING.md`.
+>
+> **For local installs** the proposal can simply be enabled by the user — see the README section "Thinking block not rendering".
+
 **Implications for publishing:**
 
 - Proposed APIs are subject to change and are **not covered by the standard VS Code API stability guarantees**.
 - Extensions using proposed APIs may be flagged during Marketplace review. You typically need approval from the VS Code team to ship to the stable Marketplace with proposed APIs.
-- Proposed APIs are **enabled by default in VS Code Insiders**. For stable builds, users may need `#extensions.proposedApi` enabled in their settings, or the extension may need to be gated behind an Insiders check.
 - Check the current status of the `languageModelThinkingPart` proposal at: <https://github.com/microsoft/vscode/blob/main/src/vscode-dts/vscode.proposed.d.ts>
 
 If the proposal graduates to a stable API, update `enabledApiProposals` and the minimum `engines.vscode` version accordingly.
+
+### Installing locally instead of publishing
+
+```bash
+npm run ltfb
+npm run package
+code --install-extension minimax-copilot-0.2.0.vsix
+```
+
+To make the collapsible Thinking block work, add the extension to `argv.json`
+(**Preferences: Configure Runtime Arguments**) and restart VS Code:
+
+```json
+"enable-proposed-api": ["minimax-copilot-paygo.minimax-copilot"]
+```
 
 ---
 

@@ -13,7 +13,11 @@ Thinking is **on by default**. You can toggle it anytime:
 > [Set Thinking Effort](command:minimax.setThinkingEffort)
 > (`low` → `max`).
 
-> **Requires:** VS Code build with the
-> `languageModelThinkingPart` proposal active.
-> On stable VS Code, chat still works — reasoning just
-> won't appear as a separate block.
+> **Requires:** the `languageModelThinkingPart` proposed API.
+> VS Code strips it from installed extensions by default — add
+> `"enable-proposed-api": ["minimax-copilot-paygo.minimax-copilot"]`
+> to `argv.json` (**Preferences: Configure Runtime Arguments**)
+> and restart VS Code. See the README for details.
+>
+> Without it, chat still works — reasoning just won't appear as a
+> separate block.

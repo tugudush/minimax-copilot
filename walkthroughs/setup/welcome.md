@@ -27,7 +27,12 @@ Open **Copilot Chat** (`Ctrl+Shift+I`), click the model picker,
 and select **MiniMax M3.1 Flash**. Start chatting — your PAYG key will
 be billed per token.
 
-> **Note:** The collapsible "Thinking" block requires a VS Code
-> build with the `languageModelThinkingPart` proposal active
-> (Insiders / approved). On stable VS Code, chat still works —
-> reasoning just won't render as a separate collapsible block.
+> **Note:** The collapsible "Thinking" block requires the
+> `languageModelThinkingPart` proposed API. VS Code strips it from
+> installed extensions by default — add
+> `"enable-proposed-api": ["minimax-copilot-paygo.minimax-copilot"]`
+> to `argv.json` (**Preferences: Configure Runtime Arguments**)
+> and restart VS Code. See the README for details.
+>
+> Without it, chat still works — reasoning just won't render as a
+> separate collapsible block.
