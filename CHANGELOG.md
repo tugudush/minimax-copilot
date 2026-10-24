@@ -6,6 +6,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] — 2026-10-24
+
+### Added
+
+- **MiniMax M3.1 Flash** (`MiniMax-M3.1-Flash`) — the latest
+  MiniMax M-series model, now first in the Copilot Chat model
+  picker. 1M-token context window, multimodal (image/video) input,
+  and the lowest PAYG rate of any model in the extension
+  ($0.15 input / $0.60 output per M tokens, $0.015 cache read).
+- **Tunable thinking depth** — new `minimax.thinkingEffort` setting
+  (`low` | `medium` | `high` | `xhigh` | `max`, default `max`) and a
+  **MiniMax: Set Thinking Effort** command. Sent upstream as
+  `output_config.effort`, which is supported by M3.1 Flash only.
+- **Per-model output caps** — `max_tokens` now defaults to each
+  model's own cap instead of a flat 4096 (M3.1 Flash: 32,768;
+  M3: 8,192). `minimax.maxOutputTokens` still overrides.
+
+### Removed
+
+- **MiniMax M2.7 and M2.7 Highspeed** — the M2.x models are no
+  longer offered in the picker. MiniMax retired the M2.5 / M2.7
+  families on 2026-11-18, and the Anthropic-compatible endpoint now
+  serves only M3.1 Flash and M3. Their model IDs, context limits,
+  output caps, pricing entries, and localized display names were
+  removed along with them.
+
+### Changed
+
+- **M3.1 Flash always thinks.** The API rejects
+  `thinking: {type: "disabled"}` for this model with a `400`, so the
+  `minimax.thinking` toggle does not apply to it — the request always
+  carries `thinking: {type: "adaptive"}`. Use the thinking-effort
+  setting to control depth instead.
+- **Model display names are resolved lazily.** They were previously
+  frozen at module-load time, before `initI18n()` ran, so the picker
+  always showed the English name regardless of locale.
+- **Picker metadata comes from the registry.** `family` and
+  `maxOutputTokens` are now read from the model table instead of
+  being derived from the model ID string.
+- **Thinking is gated on registry metadata.** The request builder
+  now consults the model's `thinking` flag instead of matching
+  `m3` against the model ID string.
+
+---
+
 ## [0.1.0] — 2026-07-02
 
 Initial release. PAYG-first VS Code extension that surfaces **MiniMax
@@ -129,4 +174,5 @@ Global API` / `MiniMax: Switch to Chinese API` commands override
   English-only. Bilingual UI strings exist in `src/i18n.ts` and can
   be exported to a docs build later.
 
+[0.2.0]: #020--2026-10-24
 [0.1.0]: #010--2026-07-02

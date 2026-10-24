@@ -11,6 +11,9 @@
  * `thinking_delta` events map to `LanguageModelThinkingPart` with a
  * stable `id` so Copilot Chat renders its collapsible "Thinking" block.
  *
+ * MiniMax-M3.1-Flash always thinks (the API rejects `disabled`), and
+ * its reasoning depth is tuned via `output_config.effort`.
+ *
  * Thinking-block `signature` values (required by Anthropic for replay)
  * are captured from `content_block_stop` events and stored in the
  * supplied `thinkingSignatures` map keyed by block `id`.
@@ -22,8 +25,9 @@
 import Anthropic from '@anthropic-ai/sdk'
 import * as vscode from 'vscode'
 import { resolveBaseUrl } from '../runtime/endpoint'
-import { thinking as thinkingEnabled } from '../config'
+import { thinking as thinkingEnabled, thinkingEffort } from '../config'
 import { THINKING_ID_PREFIX } from '../consts'
+import { findModel } from '../models/registry'
 import { getThinkingPartCtor } from '../runtime/thinkingPartGuard'
 import type { AnthropicMessageParam } from '../types'
 import * as logger from '../logger'
@@ -71,11 +75,30 @@ export async function streamChat(
   }
 
   // Phase 2: wire adaptive thinking for M3-family models.
-  const enableThinking =
-    thinkingEnabled() && (modelId.includes('m3') || modelId.includes('M3'))
+  //
+  // - MiniMax-M3.1-Flash ALWAYS thinks — the API rejects
+  //   `thinking: {type:'disabled'}` with a 400 — so the
+  //   `minimax.thinking` toggle does not apply to it. Thinking depth
+  //   is tuned separately via `output_config.effort`.
+  // - MiniMax-M3 thinks only when `minimax.thinking` is on. When off,
+  //   the field is omitted entirely (never sent as "disabled").
+  const info = findModel(modelId)
+  const enableThinking = info?.thinkingAlwaysOn
+    ? true
+    : thinkingEnabled() && info?.thinking === true
+
   if (enableThinking) {
     ;(params as unknown as Record<string, unknown>).thinking = {
       type: 'adaptive',
+    }
+  }
+
+  // Thinking depth — MiniMax-M3.1-Flash only. Upstream accepts
+  // low | medium | high | xhigh | max and defaults to `max` when the
+  // field is omitted. `none` is rejected with a 400.
+  if (info?.effortTunable) {
+    ;(params as unknown as Record<string, unknown>).output_config = {
+      effort: thinkingEffort(),
     }
   }
 

@@ -6,6 +6,7 @@
  */
 
 import type Anthropic from '@anthropic-ai/sdk'
+import type { PricingKey } from './consts'
 
 /* ---- Re-export key Anthropic types for convenience ---- */
 export type AnthropicMessage = Anthropic.Messages.Message
@@ -27,8 +28,14 @@ export type ModelTier = 'standard' | 'priority'
 export interface ModelInfo {
   /** Model ID sent in API requests. */
   id: string
-  /** Display name in the model picker. */
-  name: string
+  /**
+   * Display name in the model picker.
+   *
+   * Usually left unset — use `modelName(info)` from
+   * `src/models/registry.ts`, which resolves the localized name at
+   * call time rather than freezing it at module load.
+   */
+  name?: string
   /** Maximum context window (tokens). */
   contextWindow: number
   /** Whether adaptive thinking is supported. */
@@ -37,4 +44,14 @@ export interface ModelInfo {
   tier: ModelTier
   /** Whether image/video input is supported. */
   multimodal: boolean
+  /** Family of the model. */
+  family: string
+  /** Per-model output cap. */
+  outputCap: number
+  /** Whether thinking is always on. */
+  thinkingAlwaysOn: boolean
+  /** Whether effort is tunable. */
+  effortTunable: boolean
+  /** Pricing key. */
+  pricingKey: PricingKey
 }

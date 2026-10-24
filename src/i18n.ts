@@ -4,9 +4,11 @@
  * Messages are keyed by a string id. The active locale is resolved
  * once at activation time from `vscode.env.language`; zh-cn / zh-tw
  * variants all map to `zh`.
+ *
+ * `vscode` is resolved lazily inside `initI18n()` so this module can
+ * be imported from code that must stay free of a `vscode` dependency
+ * (e.g. `src/models/registry.ts`, which is unit-tested in plain Node).
  */
-
-import * as vscode from 'vscode'
 
 type Lang = 'en' | 'zh'
 
@@ -63,6 +65,18 @@ const messages: Record<string, Record<Lang, string>> = {
     en: 'M3 adaptive thinking: OFF',
     zh: 'M3 自适应思维链：已关闭',
   },
+  'effort.title': {
+    en: 'MiniMax: Set Thinking Effort',
+    zh: 'MiniMax: 设置思维深度',
+  },
+  'effort.prompt': {
+    en: 'Select the thinking depth for MiniMax M3.1 Flash',
+    zh: '选择 MiniMax M3.1 Flash 的思维深度',
+  },
+  'effort.done': {
+    en: 'Thinking effort set to {level}.',
+    zh: '思维深度已设置为 {level}。',
+  },
 
   'logs.title': { en: 'MiniMax: Show Logs', zh: 'MiniMax: 显示日志' },
 
@@ -87,15 +101,14 @@ const messages: Record<string, Record<Lang, string>> = {
     zh: '网络错误 — 请检查连接。',
   },
 
+  'model.m3.1-flash.name': {
+    en: 'MiniMax M3.1 Flash',
+    zh: 'MiniMax M3.1 Flash',
+  },
   'model.m3.name': { en: 'MiniMax M3', zh: 'MiniMax M3' },
   'model.m3-priority.name': {
     en: 'MiniMax M3 (Priority)',
     zh: 'MiniMax M3（优先）',
-  },
-  'model.m2.7.name': { en: 'MiniMax M2.7', zh: 'MiniMax M2.7' },
-  'model.m2.7-highspeed.name': {
-    en: 'MiniMax M2.7 Highspeed',
-    zh: 'MiniMax M2.7 高速',
   },
 
   'provider.noKey': {
@@ -146,6 +159,9 @@ let currentLang: Lang = 'en'
 
 /** Call once at activation to set the locale. */
 export function initI18n(): void {
+  // Lazy require: `vscode` only exists inside the extension host.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const vscode = require('vscode') as typeof import('vscode')
   const lang = vscode.env.language.toLowerCase()
   currentLang = lang.startsWith('zh') ? 'zh' : 'en'
 }

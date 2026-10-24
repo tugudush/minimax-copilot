@@ -6,7 +6,12 @@
  */
 
 import * as vscode from 'vscode'
-import { CONFIG_SECTION } from './consts'
+import {
+  CONFIG_SECTION,
+  DEFAULT_THINKING_EFFORT,
+  THINKING_EFFORTS,
+  type ThinkingEffort,
+} from './consts'
 
 function cfg(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration(CONFIG_SECTION)
@@ -20,6 +25,19 @@ export function apiBaseUrl(): string {
 /** Whether adaptive thinking is on for M3 (default true). */
 export function thinking(): boolean {
   return cfg().get<boolean>('thinking', true)
+}
+
+/**
+ * Thinking depth for MiniMax-M3.1-Flash.
+ *
+ * Sent as `output_config.effort`. Upstream accepts `low`, `medium`,
+ * `high`, `xhigh`, and `max`; `none` is rejected with a 400.
+ */
+export function thinkingEffort(): ThinkingEffort {
+  const raw = cfg().get<string>('thinkingEffort', DEFAULT_THINKING_EFFORT)
+  return (THINKING_EFFORTS as readonly string[]).includes(raw)
+    ? (raw as ThinkingEffort)
+    : DEFAULT_THINKING_EFFORT
 }
 
 /** Model filter list. Empty = all models visible. */

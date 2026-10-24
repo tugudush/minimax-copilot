@@ -120,7 +120,7 @@ containing a content array` — reproduces the exact runtime shape
 ### Runtime rollout caveat
 
 VS Code loads the extension from the **installed** copy at
-`~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-0.1.0/`, not the
+`~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-<version>/`, not the
 source tree (see repo memory). The code fix alone does not change runtime
 behavior until the extension is repackaged and reinstalled. Reinstalling while
 VS Code holds the extension folder silently no-ops; either fully quit VS Code
@@ -213,7 +213,7 @@ lint/typecheck/format clean.
 
 Source edits don't affect runtime (installed copy runs). The freshly built
 `dist/extension.js` was copied over
-`~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-0.1.0/dist/extension.js`
+`~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-<version>/dist/extension.js`
 (the file was writable; no full VS Code quit needed). **Reload Window** to load
 the new code, then reproduce the git scenario once.
 
@@ -317,7 +317,7 @@ fix, bringing the total new tests in this fix set to 5: 2 in §3, 2 in §5,
 ### Deploy
 
 Same pattern as before — built `dist/extension.js` copied over
-`~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-0.1.0/dist/extension.js`
+`~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-<version>/dist/extension.js`
 (file writable, no full VS Code quit needed).
 
 ### Next step (blocking on user repro)
@@ -431,7 +431,7 @@ npm run lint && npm run typecheck && npm run compile  # clean
 Deploy:
 
 ```
-cp dist/extension.js ~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-0.1.0/dist/extension.js
+cp dist/extension.js ~/.vscode/extensions/minimax-copilot-paygo.minimax-copilot-<version>/dist/extension.js
 ```
 
 Reload VS Code, then rerun the git scenario. If it still repeats, inspect the

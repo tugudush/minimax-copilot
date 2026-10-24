@@ -6,9 +6,10 @@
  */
 
 import * as vscode from 'vscode'
-import { MODELS, pricingDetail } from '../models/registry'
+import { MODELS, modelName, pricingDetail } from '../models/registry'
 import { visibleModels } from '../config'
 import { hasApiKey } from '../auth'
+import { isChinaHost } from '../runtime/endpoint'
 import { t } from '../i18n'
 
 /**
@@ -20,6 +21,7 @@ export async function buildChatInformation(
 ): Promise<vscode.LanguageModelChatInformation[]> {
   const visible = visibleModels()
   const hasKey = await hasApiKey(context)
+  const china = isChinaHost()
 
   let models = MODELS
 
@@ -29,18 +31,18 @@ export async function buildChatInformation(
   }
 
   return models.map((info) => {
-    const detail = pricingDetail(info)
+    const detail = pricingDetail(info, china)
     const tooltip = hasKey ? `PAYG • ${detail}` : t('provider.noKey')
 
     // LanguageModelChatInformation is an interface — return a plain
     // object conforming to it.
     return {
       id: info.id,
-      name: info.name,
-      family: info.id.includes('m3') ? 'm3' : 'm2.7',
+      name: modelName(info),
+      family: info.family,
       version: '1.0',
       maxInputTokens: info.contextWindow,
-      maxOutputTokens: 8192,
+      maxOutputTokens: info.outputCap,
       tooltip,
       detail: hasKey ? `PAYG • ${detail}` : undefined,
       capabilities: {

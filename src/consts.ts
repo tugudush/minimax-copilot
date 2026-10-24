@@ -16,14 +16,37 @@ export const HOST_GLOBAL = 'https://api.minimax.io/anthropic'
 export const CONFIG_SECTION = 'minimax'
 
 /* ---- Model IDs ---- */
+export const MODEL_M3_1_FLASH = 'MiniMax-M3.1-Flash'
 export const MODEL_M3 = 'minimax-m3'
 export const MODEL_M3_PRIORITY = 'minimax-m3-priority'
-export const MODEL_M2_7 = 'minimax-m2.7'
-export const MODEL_M2_7_HIGHSPEED = 'minimax-m2.7-highspeed'
 
 /* ---- Context limits ---- */
+export const M3_1_FLASH_CONTEXT = 1_048_576 // 1M
 export const M3_CONTEXT = 1_048_576 // 1M
-export const M2_7_CONTEXT = 204_800
+
+/* ---- Default output token caps (per model) ----
+ *
+ * Used when `minimax.maxOutputTokens` is 0 ("model decides"). M3.1
+ * Flash gets a larger default because thinking tokens count toward
+ * `max_tokens` and it reasons at `max` effort by default.
+ */
+export const M3_1_FLASH_MAX_OUTPUT = 32_768
+export const M3_MAX_OUTPUT = 8_192
+
+/* ---- Thinking depth levels (MiniMax-M3.1-Flash only) ----
+ *
+ * Sent as `output_config.effort` on the Anthropic-compatible API.
+ * `none` is not supported upstream — thinking cannot be disabled.
+ */
+export const THINKING_EFFORTS = [
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const
+export type ThinkingEffort = (typeof THINKING_EFFORTS)[number]
+export const DEFAULT_THINKING_EFFORT: ThinkingEffort = 'max'
 
 /* ---- Output channel name ---- */
 export const OUTPUT_CHANNEL_NAME = 'MiniMax PAYG Copilot'
@@ -39,10 +62,12 @@ export const THINKING_ID_PREFIX = 'minimax-thinking'
  * missing keys back in this same shape.
  */
 export const PRICING = {
+  m3_1_flash: { input: 0.15, output: 0.6, cacheRead: 0.015 },
   m3_standard: { input: 0.3, output: 1.2, cacheRead: 0.06 },
-  m2_7: { input: 0.3, output: 1.2, cacheRead: 0.06 },
-  m2_7_highspeed: { input: 0.6, output: 2.4, cacheRead: 0.06 },
 } as const
+
+/** Key into {@link PRICING} for a model's rate card. */
+export type PricingKey = keyof typeof PRICING
 
 /* ---- Platform billing URL ---- */
 export const BILLING_URL_CHINA =

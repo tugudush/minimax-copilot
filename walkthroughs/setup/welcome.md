@@ -1,6 +1,6 @@
 # Get Started with MiniMax PAYG Copilot
 
-Welcome! This walkthrough will help you get MiniMax M3 running in
+Welcome! This walkthrough will help you get MiniMax M3.1 Flash running in
 Copilot Chat with a pay‑as‑you‑go key.
 
 ## 1. Get a MiniMax API key
@@ -24,7 +24,7 @@ This ensures your requests hit the correct MiniMax endpoint.
 ## 4. Pick a model
 
 Open **Copilot Chat** (`Ctrl+Shift+I`), click the model picker,
-and select **MiniMax M3**. Start chatting — your PAYG key will
+and select **MiniMax M3.1 Flash**. Start chatting — your PAYG key will
 be billed per token.
 
 > **Note:** The collapsible "Thinking" block requires a VS Code

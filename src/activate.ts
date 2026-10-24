@@ -7,9 +7,9 @@ import { registerCommands } from './runtime/commands'
 /**
  * MiniMax PAYG Copilot — entry point.
  *
- * Registers the MiniMax chat provider so MiniMax M3 / M2.7 models
- * appear in the Copilot Chat model picker, sets up commands, and
- * eagerly activates GitHub Copilot Chat so the first model-picker
+ * Registers the MiniMax chat provider so MiniMax M3.1 Flash / M3
+ * models appear in the Copilot Chat model picker, sets up commands,
+ * and eagerly activates GitHub Copilot Chat so the first model-picker
  * refresh reaches a live listener.
  */
 export async function activate(

@@ -1,88 +1,118 @@
 /**
- * Model registry — MiniMax M3 / M2.7 definitions.
+ * Model registry — MiniMax M3.1 Flash / M3 definitions.
  *
- * Defines the four supported models with context windows, thinking
- * support, pricing tiers, and multimodal capability. The chat provider
- * reads this to build picker entries.
+ * Defines the supported models with context windows, thinking support,
+ * pricing tiers, and multimodal capability. The chat provider reads
+ * this to build picker entries.
+ *
+ * Only the M3 family is supported. The M2.x models were dropped:
+ * MiniMax retired M2.5/M2.7 on 2026-11-18, and the Anthropic-
+ * compatible endpoint now only serves M3.1 Flash and M3.
+ *
+ * This module is deliberately free of `vscode` imports so it can be
+ * unit-tested in plain Node. Display names are resolved lazily via
+ * `modelName()` — resolving them at module load would freeze the
+ * locale before `initI18n()` has run.
  */
 
 import {
+  MODEL_M3_1_FLASH,
   MODEL_M3,
   MODEL_M3_PRIORITY,
-  MODEL_M2_7,
-  MODEL_M2_7_HIGHSPEED,
+  M3_1_FLASH_CONTEXT,
+  M3_1_FLASH_MAX_OUTPUT,
   M3_CONTEXT,
-  M2_7_CONTEXT,
+  M3_MAX_OUTPUT,
   PRICING,
 } from '../consts'
 import type { ModelInfo } from '../types'
 import { t } from '../i18n'
-import { isChinaHost } from '../runtime/endpoint'
 
 /* ---- Model definitions ---- */
 
 export const MODELS: ModelInfo[] = [
   {
+    id: MODEL_M3_1_FLASH,
+    contextWindow: M3_1_FLASH_CONTEXT,
+    thinking: true,
+    tier: 'standard',
+    multimodal: true,
+    family: 'm3.1',
+    outputCap: M3_1_FLASH_MAX_OUTPUT,
+    // M3.1 Flash always thinks — the API rejects `thinking: disabled`.
+    thinkingAlwaysOn: true,
+    effortTunable: true,
+    pricingKey: 'm3_1_flash',
+  },
+  {
     id: MODEL_M3,
-    name: t('model.m3.name'),
     contextWindow: M3_CONTEXT,
     thinking: true,
     tier: 'standard',
     multimodal: true,
+    family: 'm3',
+    outputCap: M3_MAX_OUTPUT,
+    thinkingAlwaysOn: false,
+    effortTunable: false,
+    pricingKey: 'm3_standard',
   },
   {
     id: MODEL_M3_PRIORITY,
-    name: t('model.m3-priority.name'),
     contextWindow: M3_CONTEXT,
     thinking: true,
     tier: 'priority',
     multimodal: true,
-  },
-  {
-    id: MODEL_M2_7,
-    name: t('model.m2.7.name'),
-    contextWindow: M2_7_CONTEXT,
-    thinking: false,
-    tier: 'standard',
-    multimodal: false,
-  },
-  {
-    id: MODEL_M2_7_HIGHSPEED,
-    name: t('model.m2.7-highspeed.name'),
-    contextWindow: M2_7_CONTEXT,
-    thinking: false,
-    tier: 'standard',
-    multimodal: false,
+    family: 'm3',
+    outputCap: M3_MAX_OUTPUT,
+    thinkingAlwaysOn: false,
+    effortTunable: false,
+    pricingKey: 'm3_standard',
   },
 ]
+
+/* ---- Display names ---- */
+
+/** i18n key for a model's display name. */
+const NAME_KEYS: Record<string, string> = {
+  [MODEL_M3_1_FLASH]: 'model.m3.1-flash.name',
+  [MODEL_M3]: 'model.m3.name',
+  [MODEL_M3_PRIORITY]: 'model.m3-priority.name',
+}
+
+/**
+ * Resolve a model's localized display name.
+ *
+ * Kept out of the `MODELS` table so the locale is read at call time
+ * rather than at module-load time.
+ */
+export function modelName(info: ModelInfo): string {
+  const key = NAME_KEYS[info.id]
+  if (!key) return info.id
+  return t(key)
+}
 
 /** Look up a model by its ID. */
 export function findModel(id: string): ModelInfo | undefined {
   return MODELS.find((m) => m.id === id)
 }
 
-/** Build a human-readable pricing detail for the model picker tooltip. */
-export function pricingDetail(info: ModelInfo): string {
-  const china = isChinaHost()
+/**
+ * Build a human-readable pricing detail for the model picker tooltip.
+ *
+ * @param china  Whether the active endpoint is the China host.
+ */
+export function pricingDetail(info: ModelInfo, china = false): string {
   const currency = china ? '¥' : '$'
   const rate = china ? 7 : 1 // approximate CNY multiplier
 
-  let inputRate: number
-  let outputRate: number
+  const base = PRICING[info.pricingKey]
+  let inputRate = base.input * rate
+  let outputRate = base.output * rate
 
-  if (info.id === MODEL_M3 || info.id === MODEL_M3_PRIORITY) {
-    inputRate = PRICING.m3_standard.input * rate
-    outputRate = PRICING.m3_standard.output * rate
-    if (info.tier === 'priority') {
-      inputRate *= 1.5
-      outputRate *= 1.5
-    }
-  } else if (info.id === MODEL_M2_7_HIGHSPEED) {
-    inputRate = PRICING.m2_7_highspeed.input * rate
-    outputRate = PRICING.m2_7_highspeed.output * rate
-  } else {
-    inputRate = PRICING.m2_7.input * rate
-    outputRate = PRICING.m2_7.output * rate
+  // Priority admission is billed at 1.5x the standard rate.
+  if (info.tier === 'priority') {
+    inputRate *= 1.5
+    outputRate *= 1.5
   }
 
   const inputStr = inputRate < 1 ? inputRate.toFixed(2) : inputRate.toFixed(1)

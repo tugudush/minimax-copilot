@@ -117,9 +117,10 @@ export class MiniMaxChatProvider implements vscode.LanguageModelChatProvider {
       this.thinkingSignatures
     )
 
-    // Determine max tokens.
+    // Determine max tokens. The user setting wins; otherwise fall
+    // back to the model's own default cap.
     const configMax = maxOutputTokens()
-    const maxTokens = configMax > 0 ? configMax : 4096
+    const maxTokens = configMax > 0 ? configMax : info.outputCap
 
     // Convert tools (if any) so the model can call them via the API
     // instead of hallucinating tool-call markup as text.
